@@ -34,6 +34,26 @@ img { max-width: 100%; }
 table { border-collapse: collapse; }
 td, th { border: 1px solid var(--vscode-panel-border, rgba(127, 127, 127, 0.35)); padding: 6px 9px; }
 .muted { color: var(--vscode-descriptionForeground); }
+.tags {
+	margin: 6px 0 0;
+	color: var(--vscode-descriptionForeground);
+	font-size: 0.9em;
+}
+.tags-details {
+	margin: 8px 0 4px;
+}
+.tags-details > summary {
+	cursor: pointer;
+	color: var(--vscode-descriptionForeground);
+	font-size: 0.9em;
+}
+.bottom-links {
+	margin-top: 28px;
+	padding-top: 10px;
+	padding-bottom: 10px;
+	color: var(--vscode-descriptionForeground);
+	font-size: calc(0.9em + 1pt);
+}
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
 .tag {
 	display: inline-block;

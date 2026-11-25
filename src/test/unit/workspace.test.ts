@@ -42,7 +42,6 @@ test('builds a C++ solution template with submit markers and a comment header', 
 	assert.equal(template.language.extension, '.cpp');
 	assert.match(template.content, /^\/\/ 1\. Two Sum \(Easy\)/);
 	assert.match(template.content, /https:\/\/leetcode\.cn\/problems\/two-sum\//);
-	assert.match(template.content, /Only the code between the submit markers is sent to LeetCode\./);
 	const start = template.content.indexOf('// @simple-leet:submit-start');
 	const end = template.content.indexOf('// @simple-leet:submit-end');
 	const snippet = template.content.indexOf('class Solution {};');

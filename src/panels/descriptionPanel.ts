@@ -1,24 +1,11 @@
 import * as vscode from 'vscode';
 import { ProblemDetail, Site } from '../types/problem';
 import { escapeHtml, sanitizeProblemHtml } from '../util/html';
-import { problemUrl, siteLabel } from '../util/site';
+import { problemUrl } from '../util/site';
 import { handlePanelMessage, makeNonce, pageHtml } from './webview';
 
-function difficultyClass(difficulty: string): string {
-	const normalized = difficulty.toLowerCase();
-	return normalized === 'easy' || normalized === 'medium' || normalized === 'hard' ? normalized : '';
-}
-
 export function renderDescriptionHtml(detail: ProblemDetail, site: Site, nonce: string): string {
-	const url = problemUrl(site, detail.titleSlug);
-	const rate =
-		typeof detail.acRate === 'number' && Number.isFinite(detail.acRate)
-			? `<span class="muted">AC ${detail.acRate.toFixed(1)}%</span>`
-			: '';
-	const premium = detail.paidOnly ? '<span class="badge medium">Premium</span>' : '';
-	const tags = (detail.topicTags ?? [])
-		.map((tag) => `<span class="tag">${escapeHtml(tag.name)}</span>`)
-		.join(' ');
+	const tags = (detail.topicTags ?? []).map((tag) => escapeHtml(tag.name)).join(' | ');
 	const content = detail.content.trim()
 		? sanitizeProblemHtml(detail.content)
 		: '<p class="muted">No description is available for this problem. It may be a premium-only problem.</p>';
@@ -28,18 +15,14 @@ export function renderDescriptionHtml(detail: ProblemDetail, site: Site, nonce: 
 					.map((hint) => `<li>${sanitizeProblemHtml(hint)}</li>`)
 					.join('')}</ol></details>`
 			: '';
+	const baseUrl = problemUrl(site, detail.titleSlug);
+	const footer = `<div class="bottom-links"><a href="${escapeHtml(`${baseUrl}submissions/`)}">submission</a> | <a href="${escapeHtml(`${baseUrl}solutions/`)}">solution</a></div>`;
 	const body = `<h1>${escapeHtml(detail.questionFrontendId)}. ${escapeHtml(detail.title)}</h1>
-<div class="row">
-	<span class="badge ${difficultyClass(detail.difficulty)}">${escapeHtml(detail.difficulty)}</span>
-	${premium}
-	${rate}
-	<span class="muted">${siteLabel(site)}</span>
-	<a href="${escapeHtml(url)}">Open on LeetCode</a>
-</div>
-${tags ? `<div class="row">${tags}</div>` : ''}
+${tags ? `<details class="tags-details"><summary>Tags</summary><div class="tags">${tags}</div></details>` : ''}
 <hr>
 <main>${content}</main>
-${hints}`;
+${hints}
+${footer}`;
 	return pageHtml({
 		title: `${detail.questionFrontendId}. ${detail.title}`,
 		nonce,

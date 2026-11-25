@@ -111,18 +111,6 @@ export class ProblemTreeProvider implements vscode.TreeDataProvider<ProblemTreeN
 		return this.list.items.filter((problem) => problem.difficulty.toUpperCase() === key);
 	}
 
-	private countLabel(key: CategoryKey): string {
-		if (!this.list) {
-			return '…';
-		}
-		const loading = this.list.items.length < this.list.total;
-		if (key === 'ALL') {
-			return loading ? `${this.list.items.length}/${this.list.total}` : `${this.list.total}`;
-		}
-		const count = this.problemsFor(key).length;
-		return loading ? `${count}+` : `${count}`;
-	}
-
 	getChildren(element?: ProblemTreeNode): ProblemTreeNode[] {
 		if (!element) {
 			return this.categories;
@@ -137,7 +125,6 @@ export class ProblemTreeProvider implements vscode.TreeDataProvider<ProblemTreeN
 		if (element.type === 'category') {
 			const label = CATEGORY_LABELS[element.key];
 			const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.Collapsed);
-			item.description = this.countLabel(element.key);
 			item.iconPath =
 				element.key === 'ALL'
 					? new vscode.ThemeIcon('list-unordered')
@@ -145,7 +132,7 @@ export class ProblemTreeProvider implements vscode.TreeDataProvider<ProblemTreeN
 			item.contextValue = 'category';
 			item.tooltip = `${label} problems`;
 			item.accessibilityInformation = {
-				label: `${label} problems, ${this.problemsFor(element.key).length} loaded`,
+				label: `${label} problems`,
 			};
 			return item;
 		}
