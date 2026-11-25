@@ -10,6 +10,8 @@ export interface SubmissionCheckResponse {
 	status_runtime?: string;
 	status_memory?: string;
 	display_runtime?: string;
+	runtime_percentile?: number | string;
+	memory_percentile?: number | string;
 	total_correct?: number;
 	total_testcases?: number;
 	last_testcase?: string;
@@ -32,6 +34,8 @@ export interface SubmissionReport {
 	accepted: boolean;
 	runtime?: string;
 	memory?: string;
+	runtimePercentile?: number;
+	memoryPercentile?: number;
 	passedTests?: number;
 	totalTests?: number;
 	compileError?: string;

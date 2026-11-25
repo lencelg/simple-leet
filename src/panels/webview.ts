@@ -18,6 +18,7 @@ body {
 	background: var(--vscode-editor-background);
 }
 h1 { font-size: 1.4em; margin: 0 0 10px; }
+h1.result-title { font-size: calc(1.4em + 1pt); }
 h2 { font-size: 1.12em; margin-top: 26px; }
 a { color: var(--vscode-textLink-foreground); text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -81,6 +82,23 @@ td, th { border: 1px solid var(--vscode-panel-border, rgba(127, 127, 127, 0.35))
 .badge.hard, .badge.fail, .badge.error {
 	background: rgba(248, 81, 73, 0.2);
 	color: #f85149;
+}
+.status-text {
+	font-weight: 600;
+}
+.status-text.accepted {
+	color: #3fb950;
+}
+.status-text.warning {
+	color: #d29922;
+}
+.status-text.error {
+	color: #f85149;
+}
+.stats-lines {
+	margin: 8px 0 4px;
+	color: var(--vscode-descriptionForeground);
+	line-height: 1.5;
 }
 .card {
 	border: 1px solid var(--vscode-panel-border, rgba(127, 127, 127, 0.35));

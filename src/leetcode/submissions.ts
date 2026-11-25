@@ -68,6 +68,11 @@ function joinAnswer(value: string[] | string | undefined): string | undefined {
 	return value || undefined;
 }
 
+function toPercentile(value: number | string | undefined): number | undefined {
+	const parsed = typeof value === 'string' ? Number.parseFloat(value) : value;
+	return typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : undefined;
+}
+
 export function buildTestReport(
 	problemTitle: string,
 	site: Site,
@@ -112,6 +117,8 @@ export function buildSubmissionReport(
 		accepted: isAccepted(statusCode),
 		runtime: response.status_runtime || response.display_runtime || undefined,
 		memory: response.status_memory || undefined,
+		runtimePercentile: toPercentile(response.runtime_percentile),
+		memoryPercentile: toPercentile(response.memory_percentile),
 		passedTests: response.total_correct,
 		totalTests: response.total_testcases,
 		compileError: response.full_compile_error || response.compile_error || undefined,

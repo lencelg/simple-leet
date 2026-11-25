@@ -5,10 +5,10 @@ import { loadProblem, parseMethodSignature } from '../leetcode/problems';
 import { buildTestReport, waitForSubmission } from '../leetcode/submissions';
 import { resolveTestInput } from '../leetcode/testInput';
 import { Services } from '../services';
+import { ProblemDetail } from '../types/problem';
 import { SubmissionCheckResponse } from '../types/submission';
 import { errorMessage } from '../util/errors';
 import { logInfo } from '../util/log';
-import { siteLabel } from '../util/site';
 import {
 	getProblemReferenceForFile,
 	MISSING_PROBLEM_REFERENCE,
@@ -51,44 +51,45 @@ export async function runTests(services: Services, uriArg?: unknown): Promise<vo
 			'The csrftoken cookie is missing from the saved session. Sign out, then sign in again with the full cookie header.'
 		);
 	}
-	const detail = await vscode.window.withProgress(
-		{ location: vscode.ProgressLocation.Notification, title: 'Loading problem information...' },
-		() => loadProblem(client, reference.titleSlug)
-	);
-	const questionId = Number.parseInt(detail.questionId, 10);
-	if (!Number.isInteger(questionId) || questionId <= 0) {
-		throw new Error('Could not determine the LeetCode question id for this problem.');
-	}
-	const paramCount = parseMethodSignature(detail.metaData)?.params.length ?? 1;
-	const dataInput = resolveTestInput(detail.sampleTestCase, detail.exampleTestcases, paramCount);
-	if (!dataInput.trim()) {
-		throw new Error('No sample test case is available for this problem. Use Submit Solution instead.');
-	}
-
-	const interpret = await vscode.window.withProgress(
-		{
-			location: vscode.ProgressLocation.Notification,
-			title: `Running tests on ${siteLabel(reference.site)}...`,
-		},
-		() =>
-			client.runSolution(
-				questionId,
-				language.slug,
-				submission.code,
-				reference.titleSlug,
-				dataInput
-			)
-	);
-	logInfo(`Test run ${interpret.interpretId} created for ${reference.titleSlug}.`);
-
 	const timeoutMs = vscode.workspace.getConfiguration('simple-leet').get<number>('submissionTimeoutMs', 60000);
+	let detail: ProblemDetail | undefined;
+	let interpretId: string | undefined;
 	let response: SubmissionCheckResponse | undefined;
 	try {
-		response = await vscode.window.withProgress(
-			{ location: vscode.ProgressLocation.Notification, title: `Testing: ${detail.title}`, cancellable: true },
+		await vscode.window.withProgress(
+			{ location: vscode.ProgressLocation.Notification, title: 'testing', cancellable: true },
 			async (progress, token) => {
-				progress.report({ message: `Test run ${interpret.interpretId}` });
-				return waitForSubmission(client, interpret.interpretId, {
+				progress.report({ message: 'Loading problem information...' });
+				detail = await loadProblem(client, reference.titleSlug);
+				if (token.isCancellationRequested) {
+					return;
+				}
+				const questionId = Number.parseInt(detail.questionId, 10);
+				if (!Number.isInteger(questionId) || questionId <= 0) {
+					throw new Error('Could not determine the LeetCode question id for this problem.');
+				}
+				const paramCount = parseMethodSignature(detail.metaData)?.params.length ?? 1;
+				const dataInput = resolveTestInput(detail.sampleTestCase, detail.exampleTestcases, paramCount);
+				if (!dataInput.trim()) {
+					throw new Error('No sample test case is available for this problem. Use Submit Solution instead.');
+				}
+				progress.report({ message: 'Sending code to LeetCode...' });
+				const interpret = await client.runSolution(
+					questionId,
+					language.slug,
+					submission.code,
+					reference.titleSlug,
+					dataInput
+				);
+				interpretId = interpret.interpretId;
+				logInfo(`Test run ${interpret.interpretId} created for ${reference.titleSlug}.`);
+				if (token.isCancellationRequested) {
+					throw new Error(
+						'Stopped waiting for the judge result. The test run is still running on LeetCode.'
+					);
+				}
+				progress.report({ message: 'Waiting for the judge...' });
+				response = await waitForSubmission(client, interpret.interpretId, {
 					timeoutMs,
 					shouldCancel: () => token.isCancellationRequested,
 					onPoll: (attempt) => progress.report({ message: `Waiting for the judge... (${attempt})` }),
@@ -102,18 +103,13 @@ export async function runTests(services: Services, uriArg?: unknown): Promise<vo
 		}
 		throw error;
 	}
-	if (!response) {
+	if (!detail || !response) {
 		return;
 	}
 
 	const report = buildTestReport(detail.title, reference.site, reference.titleSlug, response);
 	services.results.showTestReport(report);
-	logInfo(`Test run ${interpret.interpretId} (${reference.titleSlug}) finished: ${report.statusName}.`);
-	if (report.accepted) {
-		void vscode.window.showInformationMessage(`Test passed: ${detail.title}.`);
-	} else {
-		void vscode.window.showWarningMessage(
-			`Test result: ${report.statusName}. See the results panel for details.`
-		);
-	}
+	logInfo(
+		`Test run ${interpretId ?? ''} (${reference.titleSlug}) finished: ${report.statusName}.`
+	);
 }

@@ -87,7 +87,7 @@ The generated header also contains the problem URL. Keep that line: it identifie
 
 ## How testing works
 
-`Run Tests` reads the problem URL from the file header, loads the problem's sample test case, and sends the code inside the submit markers to LeetCode's judge for the file's language. The result panel shows the status, runtime/memory, test input, expected and actual output, stdout and any compile or runtime error.
+`Run Tests` reads the problem URL from the file header, loads the problem's sample test case, and sends the code inside the submit markers to LeetCode's judge for the file's language. The result panel shows the status and the expected/actual output, plus compile or runtime errors when present.
 
 - Tests use LeetCode's single sample test case (the same case the Run button uses); `Submit Solution` runs the full hidden test set.
 - Any supported language can be tested. No local compiler is installed or invoked.

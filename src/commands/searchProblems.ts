@@ -162,11 +162,6 @@ async function ensureAllProblems(services: Services): Promise<void> {
 	await loadProblemList(services, { site, silent: true });
 }
 
-function firstLine(code: string): string {
-	const line = code.split('\n').map((item) => item.trim()).find((item) => item.length > 0);
-	return line ? line.slice(0, 100) : '';
-}
-
 function toProblemItem(problem: SiteProblem): ProblemPickItem {
 	const rate =
 		typeof problem.acRate === 'number' && Number.isFinite(problem.acRate)
@@ -222,9 +217,7 @@ function pickLanguage(detail: ProblemDetail): Promise<AvailableLanguage | 'back'
 	picker.title = `Select Language for ${detail.questionFrontendId}. ${detail.title}`;
 	picker.placeholder = 'Choose a language for the solution file';
 	picker.items = available.map((entry) => ({
-		label: entry.language.name,
-		description: entry.language.slug,
-		detail: firstLine(entry.snippet.code),
+		label: entry.language.slug,
 		available: entry,
 	}));
 	const preferred = vscode.workspace

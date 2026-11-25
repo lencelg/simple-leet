@@ -1,6 +1,6 @@
 # Change Log
 
-## 0.1.0
+## 2.0.0
 
 - Sign in to LeetCode China and LeetCode Global with browser session cookies stored in `SecretStorage`.
 - Problem search by keyword.
@@ -11,3 +11,6 @@
 - Submit markers in generated files; tests and submissions use only the marked code region.
 - Run Tests uses the LeetCode judge with the sample test case for any supported language; no local compiler or harness is used.
 - Submit solutions and poll the LeetCode judge with status details.
+- Test and submission result panels use plain colored status text, runtime/memory percentiles and concise output sections.
+- Test and submit actions show a single `testing` or `submitting` notification.
+- The language picker lists language slugs without extra descriptions.

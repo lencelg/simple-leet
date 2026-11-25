@@ -4,10 +4,10 @@ import { ensureSignedInClient } from '../leetcode/auth';
 import { loadProblem } from '../leetcode/problems';
 import { buildSubmissionReport, waitForSubmission } from '../leetcode/submissions';
 import { Services } from '../services';
+import { ProblemDetail } from '../types/problem';
 import { SubmissionCheckResponse } from '../types/submission';
 import { errorMessage } from '../util/errors';
 import { logInfo } from '../util/log';
-import { siteLabel } from '../util/site';
 import {
 	getProblemReferenceForFile,
 	MISSING_PROBLEM_REFERENCE,
@@ -50,32 +50,38 @@ export async function submitSolution(services: Services, uriArg?: unknown): Prom
 			'The csrftoken cookie is missing from the saved session. Sign out, then sign in again with the full cookie header.'
 		);
 	}
-	const detail = await vscode.window.withProgress(
-		{ location: vscode.ProgressLocation.Notification, title: 'Loading problem information...' },
-		() => loadProblem(client, reference.titleSlug)
-	);
-	const questionId = Number.parseInt(detail.questionId, 10);
-	if (!Number.isInteger(questionId) || questionId <= 0) {
-		throw new Error('Could not determine the LeetCode question id for this problem.');
-	}
-
-	logInfo(
-		`Submitting ${reference.titleSlug} (${language.slug})${submission.marked ? ' using the marked section' : ''} to ${reference.site}...`
-	);
-	const submissionId = await vscode.window.withProgress(
-		{ location: vscode.ProgressLocation.Notification, title: `Submitting to ${siteLabel(reference.site)}...` },
-		() => client.submitSolution(questionId, language.slug, submission.code, reference.titleSlug)
-	);
-	logInfo(`Submission #${submissionId} created for ${reference.titleSlug}.`);
-
 	const timeoutMs = vscode.workspace.getConfiguration('simple-leet').get<number>('submissionTimeoutMs', 60000);
+	let detail: ProblemDetail | undefined;
+	let submissionId: string | undefined;
 	let response: SubmissionCheckResponse | undefined;
 	try {
-		response = await vscode.window.withProgress(
-			{ location: vscode.ProgressLocation.Notification, title: `Judging: ${detail.title}`, cancellable: true },
+		await vscode.window.withProgress(
+			{ location: vscode.ProgressLocation.Notification, title: 'submitting', cancellable: true },
 			async (progress, token) => {
-				progress.report({ message: `Submission #${submissionId}` });
-				return waitForSubmission(client, submissionId, {
+				progress.report({ message: 'Loading problem information...' });
+				detail = await loadProblem(client, reference.titleSlug);
+				if (token.isCancellationRequested) {
+					return;
+				}
+				const questionId = Number.parseInt(detail.questionId, 10);
+				if (!Number.isInteger(questionId) || questionId <= 0) {
+					throw new Error('Could not determine the LeetCode question id for this problem.');
+				}
+				progress.report({ message: 'Sending submission...' });
+				submissionId = await client.submitSolution(
+					questionId,
+					language.slug,
+					submission.code,
+					reference.titleSlug
+				);
+				logInfo(`Submission #${submissionId} created for ${reference.titleSlug}.`);
+				if (token.isCancellationRequested) {
+					throw new Error(
+						'Stopped waiting for the judge result. The submission is still running on LeetCode.'
+					);
+				}
+				progress.report({ message: 'Waiting for the judge...' });
+				response = await waitForSubmission(client, submissionId, {
 					timeoutMs,
 					shouldCancel: () => token.isCancellationRequested,
 					onPoll: (attempt) => progress.report({ message: `Waiting for the judge... (${attempt})` }),
@@ -89,20 +95,11 @@ export async function submitSolution(services: Services, uriArg?: unknown): Prom
 		}
 		throw error;
 	}
-	if (!response) {
+	if (!detail || !submissionId || !response) {
 		return;
 	}
 
 	const report = buildSubmissionReport(detail.title, reference.site, submissionId, response);
 	services.results.showSubmissionReport(report);
 	logInfo(`Submission #${submissionId} (${reference.titleSlug}) finished: ${report.statusName}.`);
-	if (report.accepted) {
-		void vscode.window.showInformationMessage(
-			`Accepted: ${detail.title}${report.runtime ? ` (${report.runtime})` : ''}.`
-		);
-	} else {
-		void vscode.window.showWarningMessage(
-			`Submission result: ${report.statusName}. See the result panel for details.`
-		);
-	}
 }

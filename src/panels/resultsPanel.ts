@@ -8,23 +8,29 @@ function section(label: string, value: string, kind = ''): string {
 	return `<div class="label">${escapeHtml(label)}</div><pre class="${kind}">${escapeHtml(value || '(empty)')}</pre>`;
 }
 
+function statusTone(
+	accepted: boolean,
+	statusCode: number,
+	statusName: string
+): 'accepted' | 'warning' | 'error' {
+	if (accepted) {
+		return 'accepted';
+	}
+	const name = statusName.toLowerCase();
+	if (
+		[12, 13, 14, 30].includes(statusCode) ||
+		/time limit|timeout|memory limit|output limit/.test(name)
+	) {
+		return 'warning';
+	}
+	return 'error';
+}
+
 export function renderTestReport(report: TestReport): string {
-	const chips = [
-		report.runtime ? `Runtime: ${escapeHtml(report.runtime)}` : '',
-		report.memory ? `Memory: ${escapeHtml(report.memory)}` : '',
-		typeof report.passedTests === 'number' && typeof report.totalTests === 'number'
-			? `Tests: ${report.passedTests} / ${report.totalTests}`
-			: '',
-	]
-		.filter(Boolean)
-		.map((chip) => `<span class="tag">${chip}</span>`)
-		.join(' ');
+	const tone = statusTone(report.accepted, report.statusCode, report.statusName);
 	const parts: string[] = [
-		`<h1>Test Results</h1>`,
-		`<div class="muted">${escapeHtml(report.problemTitle)}</div>`,
-		`<div class="summary"><span class="badge ${report.accepted ? 'accepted' : 'error'}">${escapeHtml(report.statusName)}</span></div>`,
-		chips ? `<div class="row">${chips}</div>` : '',
-		`<div class="row"><a href="${escapeHtml(report.problemUrl)}">Open problem on LeetCode</a></div>`,
+		`<h1 class="result-title">Test Results</h1>`,
+		`<div class="summary status-text ${tone}">${escapeHtml(report.statusName)}</div>`,
 	];
 	if (report.compileError) {
 		parts.push(`<h2>Compile error</h2><pre class="error">${escapeHtml(report.compileError)}</pre>`);
@@ -32,41 +38,37 @@ export function renderTestReport(report: TestReport): string {
 	if (report.runtimeError) {
 		parts.push(`<h2>Runtime error</h2><pre class="error">${escapeHtml(report.runtimeError)}</pre>`);
 	}
-	if (report.input) {
-		parts.push(section('Test input', report.input));
-	}
 	if (report.expectedOutput) {
 		parts.push(section('Expected output', report.expectedOutput));
 	}
 	if (report.actualOutput) {
 		parts.push(section('Your output', report.actualOutput));
 	}
-	if (report.stdOutput) {
-		parts.push(section('Stdout', report.stdOutput));
-	}
-	parts.push(
-		'<p class="muted">This result comes from the LeetCode judge. Test runs use the sample test case; Submit Solution runs the full test set.</p>'
-	);
 	return parts.join('\n');
 }
 
 export function renderSubmissionReport(report: SubmissionReport): string {
-	const chips = [
-		report.runtime ? `Runtime: ${escapeHtml(report.runtime)}` : '',
-		report.memory ? `Memory: ${escapeHtml(report.memory)}` : '',
-		typeof report.passedTests === 'number' && typeof report.totalTests === 'number'
-			? `Tests: ${report.passedTests} / ${report.totalTests}`
-			: '',
-	]
-		.filter(Boolean)
-		.map((chip) => `<span class="tag">${chip}</span>`)
-		.join(' ');
+	const tone = statusTone(report.accepted, report.statusCode, report.statusName);
+	const stats: string[] = [];
+	if (report.runtime) {
+		const percentile =
+			typeof report.runtimePercentile === 'number' ? ` (${Math.round(report.runtimePercentile)}%)` : '';
+		stats.push(`Runtime: ${escapeHtml(report.runtime)}${percentile}`);
+	}
+	if (report.memory) {
+		const percentile =
+			typeof report.memoryPercentile === 'number' ? ` (${Math.round(report.memoryPercentile)}%)` : '';
+		stats.push(`Memory: ${escapeHtml(report.memory)}${percentile}`);
+	}
+	if (typeof report.passedTests === 'number' && typeof report.totalTests === 'number') {
+		stats.push(`Tests: ${report.passedTests}/${report.totalTests}`);
+	}
 	const parts: string[] = [
-		`<h1>Submission Result</h1>`,
-		`<div class="muted">${escapeHtml(report.problemTitle)}</div>`,
-		`<div class="summary"><span class="badge ${report.accepted ? 'accepted' : 'error'}">${escapeHtml(report.statusName)}</span></div>`,
-		chips ? `<div class="row">${chips}</div>` : '',
-		`<div class="row"><a href="${escapeHtml(report.url)}">Open submission on LeetCode</a><span class="muted">Submission #${escapeHtml(report.submissionId)}</span></div>`,
+		`<h1 class="result-title">Submission Result</h1>`,
+		`<div class="summary status-text ${tone}">${escapeHtml(report.statusName)}</div>`,
+		stats.length > 0
+			? `<div class="stats-lines">${stats.map((line) => `<div>${line}</div>`).join('')}</div>`
+			: '',
 	];
 	if (report.compileError) {
 		parts.push(`<h2>Compile error</h2><pre class="error">${escapeHtml(report.compileError)}</pre>`);
@@ -86,7 +88,6 @@ export function renderSubmissionReport(report: SubmissionReport): string {
 	if (report.stdOutput) {
 		parts.push(section('Stdout', report.stdOutput));
 	}
-	parts.push('<p class="muted">This result comes from the LeetCode judge.</p>');
 	return parts.join('\n');
 }
 
