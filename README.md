@@ -106,3 +106,7 @@ npm run test:unit
 ```
 
 Press `F5` to launch an Extension Development Host.
+
+## License
+
+[MIT](LICENSE)
