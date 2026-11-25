@@ -1,6 +1,11 @@
 # Simple Leet
 
-A small LeetCode extension for VS Code: sign in to **leetcode.cn** or **leetcode.com**, search problems, generate multi-language solution files, test solutions on LeetCode and submit them with live judge results.
+A small LeetCode extension for VS Code:
+- sign in to **leetcode.cn** or **leetcode.com**
+- search problems
+- generate multi-language solution files
+- test solutions on LeetCode 
+- submit with live judge results.
 
 ## Features
 
@@ -12,13 +17,6 @@ A small LeetCode extension for VS Code: sign in to **leetcode.cn** or **leetcode
 - **Online testing**: runs the marked code against the problem's sample test case on LeetCode for any supported language and shows the judge result, expected/actual output and errors.
 - **Submit and judge**: submits the current file, polls the judge and shows Accepted / Wrong Answer / TLE / Runtime Error / Compile Error with failing-case details. Submissions use LeetCode's REST submit endpoint (with a GraphQL fallback on LeetCode Global).
 - **CodeLens and editor title buttons** for Run / Submit / Open in Browser.
-
-## Requirements
-
-- VS Code 1.85 or newer.
-- Network access; tests and submissions run on LeetCode and require sign-in.
-- No local compiler is required.
-- No extra runtime dependencies: network access is done with the built-in `fetch`.
 
 ## Getting started
 
@@ -33,14 +31,12 @@ A small LeetCode extension for VS Code: sign in to **leetcode.cn** or **leetcode
 
 ## Signing in
 
-LeetCode login forms can require a captcha, so this extension uses the session cookies of a browser where you are already signed in:
+use the session cookies of a browser where you are already signed in:
 
 1. Open <https://leetcode.cn> or <https://leetcode.com> and sign in.
 2. Open DevTools -> Network, click any request to the site, and find **Request Headers -> Cookie**.
 3. Copy the whole cookie value. It must contain `LEETCODE_SESSION`; include `csrftoken` as well so submissions work.
 4. In VS Code run **LeetCode: Sign In** (or click the status bar account item) and paste the value.
-
-The extension validates the session with a GraphQL `userStatus` query before saving it. Signing out removes the secret for that site. Cookies are never written to settings, source files, output channels or logs.
 
 ## Commands
 
@@ -85,15 +81,6 @@ public:
 
 The generated header also contains the problem URL. Keep that line: it identifies the problem for tests, submission and Change Language.
 
-## How testing works
-
-`Run Tests` reads the problem URL from the file header, loads the problem's sample test case, and sends the code inside the submit markers to LeetCode's judge for the file's language. The result panel shows the status and the expected/actual output, plus compile or runtime errors when present.
-
-- Tests use LeetCode's single sample test case (the same case the Run button uses); `Submit Solution` runs the full hidden test set.
-- Any supported language can be tested. No local compiler is installed or invoked.
-- Sign-in and network access are required.
-- Custom, interactive or design problems may not expose the run endpoint; submit them instead.
-
 ## Project layout
 
 ```
@@ -108,7 +95,6 @@ src/
 └── test/              # unit and integration tests
 ```
 
-Solutions live directly in the configured folder (default `~/.leetcode`), named after the problem title, for example `两数之和.cpp` or `Two Sum.py`. There are no per-problem folders and no `meta.json`; the problem URL in the file header ties the file to its problem. If two problems share a title and language, the second file gets an id suffix. Older per-problem folders still work as long as their files keep the generated header URL; the extension no longer reads `meta.json`. You can commit the folder to keep your work in version control.
 
 ## Development
 
@@ -116,12 +102,7 @@ Solutions live directly in the configured folder (default `~/.leetcode`), named 
 npm install
 npm run compile
 npm run lint
-npm run test:unit   # node --test unit tests
+npm run test:unit
 ```
 
 Press `F5` to launch an Extension Development Host.
-
-## Notes
-
-- LeetCode's internal GraphQL API is not officially supported and can change. All network access is isolated in `src/leetcode/`.
-- `LEETCODE_SESSION` and `csrftoken` are sensitive credentials. Treat them like passwords.
