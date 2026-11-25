@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { languageByFileName } from '../languages';
-import { getProblemMetaForFile } from '../workspace/problemStore';
+import { getProblemReferenceForFile } from '../workspace/problemStore';
 
 export class ProblemCodeLensProvider implements vscode.CodeLensProvider {
 	async provideCodeLenses(document: vscode.TextDocument): Promise<vscode.CodeLens[]> {
@@ -11,8 +11,8 @@ export class ProblemCodeLensProvider implements vscode.CodeLensProvider {
 		if (!language) {
 			return [];
 		}
-		const problem = await getProblemMetaForFile(document.uri);
-		if (!problem) {
+		const reference = await getProblemReferenceForFile(document.uri);
+		if (!reference) {
 			return [];
 		}
 		const range = new vscode.Range(0, 0, 0, 0);

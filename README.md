@@ -6,6 +6,7 @@ A small LeetCode extension for VS Code: sign in to **leetcode.cn** or **leetcode
 
 - **Sign in with your browser session** for LeetCode China and LeetCode Global. Sessions are stored per site in VS Code `SecretStorage`, never in settings, source files or logs.
 - **Problem explorer** with keyword search, difficulty filter, pagination and recent problems.
+- **Solutions stored directly in `~/.leetcode`**, named after the problem title; no per-problem folders or metadata files.
 - **Problem description** in a side panel, with tags, acceptance rate, hints and a link to the website.
 - **Multi-language templates**: C++, C, C#, Go, Java, JavaScript, Kotlin, PHP, Python 3, Ruby, Rust, Scala, Swift, TypeScript and MySQL. The template is generated from the problem's official snippet.
 - **Local C++ testing**: parses the example cases, builds a temporary test harness for common LeetCode signatures, compiles with `g++`/`clang++` and compares your output with the expected output.
@@ -20,14 +21,14 @@ A small LeetCode extension for VS Code: sign in to **leetcode.cn** or **leetcode
 
 ## Getting started
 
-1. Open a folder in VS Code. Problems are stored in `leetcode/<id>-<slug>/`.
+1. Solutions are stored in `~/.leetcode/<problem title>.<ext>` by default, for example `~/.leetcode/两数之和.cpp`. You can change the folder with `simple-leet.solutionFolder`; no workspace folder is required.
 2. Pick a site with **LeetCode: Switch Site** (default is `leetcode.cn`).
 3. Optional for browsing, required for submitting: **LeetCode: Sign In**. See below for the cookie values.
 4. Run **LeetCode: Search Problems**, enter keywords (or leave empty), choose a difficulty, then select a problem from the sidebar.
-5. Edit `solution.cpp` (or the file for your configured language).
+5. Edit the generated file.
    - `LeetCode: Run Tests` compiles and runs the example cases locally (C++ only).
-   - `LeetCode: Submit Solution` sends the file to the LeetCode judge.
-6. Use **LeetCode: Change Language** in a problem folder to generate a solution file in another language.
+   - `LeetCode: Submit Solution` sends the marked section to the LeetCode judge.
+6. Use **LeetCode: Change Language** to generate a solution file in another language. Files for the same problem share the title and differ by extension.
 
 ## Signing in
 
@@ -63,7 +64,7 @@ All commands are in English under the **LeetCode** category:
 | --- | --- | --- |
 | `simple-leet.defaultSite` | `leetcode.cn` | Site used for browsing before a site is selected |
 | `simple-leet.defaultLanguage` | `cpp` | Language used when opening a problem |
-| `simple-leet.workspaceFolder` | `leetcode` | Folder for problem files (relative or absolute) |
+| `simple-leet.solutionFolder` | `~/.leetcode` | Folder for solution files; `~` expands to your home directory |
 | `simple-leet.compilerPath` | empty | C++ compiler; empty auto-detects `g++`, `clang++` |
 | `simple-leet.testTimeoutMs` | `10000` | Per-case local test timeout |
 | `simple-leet.submissionTimeoutMs` | `60000` | Judge polling timeout |
@@ -84,9 +85,11 @@ public:
 
 `Submit Solution` and local tests use only the code between these markers, so debug helpers, notes or extra test code outside the markers are not sent to LeetCode. Keep any imports or helper definitions required by the judge inside the markers. Files created before this feature (without markers) are used as a whole. If only one marker is found, the whole file is used and a warning is shown.
 
+The generated header also contains the problem URL. Keep that line: it identifies the problem for local tests, submission and Change Language.
+
 ## How local testing works
 
-For C++ problems the runner reads the problem metadata (`meta.json`) saved when you opened the problem, generates a temporary `main.cpp` that constructs the parameters from the example inputs, calls `Solution`, and prints the result in LeetCode's output format. It compiles the code inside the submit markers (or the whole file if no markers are present) and runs each example in its own process so a crash or timeout in one case does not hide the others. Results are compared numerically with a small tolerance; when the statement says the answer may be returned **in any order**, element order is ignored.
+For C++ problems the runner reads the problem URL from the file header, loads the example inputs and metadata from LeetCode (cached for the session), generates a temporary `main.cpp` that constructs the parameters, calls `Solution`, and prints the result in LeetCode's output format. It compiles the code inside the submit markers (or the whole file if no markers are present) and runs each example in its own process so a crash or timeout in one case does not hide the others. Results are compared numerically with a small tolerance; when the statement says the answer may be returned **in any order**, element order is ignored. Network access is required when the problem data is not already cached.
 
 Supported signature types: integers, longs, doubles, booleans, characters, strings, arrays/matrices of those, `ListNode` and `TreeNode`, plus `void` methods (the runner prints the first argument after the call).
 
@@ -108,12 +111,12 @@ src/
 ├── providers/         # tree view, CodeLens, status bar, active-file tracking
 ├── panels/            # description and result webviews
 ├── runner/            # C++ harness, compiler, output parsing/comparison
-├── workspace/         # problem folders, meta.json, language templates
+├── workspace/         # solution storage, file naming, language templates
 ├── types/             # shared interfaces
 └── test/              # unit and integration tests
 ```
 
-Each problem folder contains `meta.json` (problem id/slug, example inputs, language-agnostic signature and expected outputs) and the generated `solution.<ext>` file. You can commit these folders to keep your work in version control.
+Solutions live directly in the configured folder (default `~/.leetcode`), named after the problem title, for example `两数之和.cpp` or `Two Sum.py`. There are no per-problem folders and no `meta.json`; the problem URL in the file header ties the file to its problem. If two problems share a title and language, the second file gets an id suffix. Older per-problem folders still work as long as their files keep the generated header URL; the extension no longer reads `meta.json`. You can commit the folder to keep your work in version control.
 
 ## Development
 

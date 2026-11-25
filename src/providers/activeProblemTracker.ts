@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { languageByFileName } from '../languages';
-import { getProblemMetaForFile } from '../workspace/problemStore';
+import { getProblemReferenceForFile } from '../workspace/problemStore';
 
 export class ActiveProblemTracker implements vscode.Disposable {
 	private readonly listener: vscode.Disposable;
@@ -18,7 +18,7 @@ export class ActiveProblemTracker implements vscode.Disposable {
 		const uri = vscode.window.activeTextEditor?.document.uri;
 		let isProblemFile = false;
 		if (uri && uri.scheme === 'file' && languageByFileName(uri.fsPath)) {
-			isProblemFile = Boolean(await getProblemMetaForFile(uri));
+			isProblemFile = Boolean(await getProblemReferenceForFile(uri));
 		}
 		if (requestId !== this.updateId) {
 			return;

@@ -5,7 +5,6 @@ import { submissionMarkers } from './submissionCode';
 
 export interface SolutionTemplate {
 	language: LanguageInfo;
-	fileName: string;
 	content: string;
 }
 
@@ -44,7 +43,6 @@ export function buildSolutionTemplate(
 	const markers = submissionMarkers(language);
 	return {
 		language,
-		fileName: `solution${language.extension}`,
 		content: `${header}\n\n${markers.start}\n${snippet.code.trimEnd()}\n${markers.end}\n`,
 	};
 }

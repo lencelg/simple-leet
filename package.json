@@ -225,10 +225,10 @@
           "default": "cpp",
           "description": "Language used when generating a solution file for a problem."
         },
-        "simple-leet.workspaceFolder": {
+        "simple-leet.solutionFolder": {
           "type": "string",
-          "default": "leetcode",
-          "description": "Folder where problem files are stored. Relative paths are resolved against the first workspace folder."
+          "default": "~/.leetcode",
+          "description": "Folder where solution files are stored. ~ expands to your home directory."
         },
         "simple-leet.compilerPath": {
           "type": "string",

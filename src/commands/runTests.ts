@@ -14,12 +14,16 @@ import {
 } from '../runner/cppRunner';
 import { generateCppHarness } from '../runner/cppHarness';
 import { compareOutput } from '../runner/outputCompare';
-import { groupExampleTestcases } from '../runner/testParser';
+import { allowsAnyOrder, extractExpectedOutputs, groupExampleTestcases } from '../runner/testParser';
 import { Services } from '../services';
 import { LocalTestCase, TestRunReport } from '../types/test';
-import { errorMessage } from '../util/errors';
 import { logInfo } from '../util/log';
-import { readSolutionText, getProblemMetaForFile, writeMetaFile } from '../workspace/problemStore';
+import { siteLabel } from '../util/site';
+import {
+	getProblemReferenceForFile,
+	MISSING_PROBLEM_REFERENCE,
+	readSolutionText,
+} from '../workspace/problemStore';
 import { extractSubmissionCode } from '../workspace/submissionCode';
 
 export async function runTests(services: Services, uriArg?: unknown): Promise<void> {
@@ -27,9 +31,9 @@ export async function runTests(services: Services, uriArg?: unknown): Promise<vo
 	if (!uri) {
 		throw new Error('Open a C++ solution file first.');
 	}
-	const problem = await getProblemMetaForFile(uri);
-	if (!problem) {
-		throw new Error('This file is not inside a Simple Leet problem folder. Open a problem from the sidebar first.');
+	const reference = await getProblemReferenceForFile(uri);
+	if (!reference) {
+		throw new Error(MISSING_PROBLEM_REFERENCE);
 	}
 	const language = languageByFileName(uri.fsPath);
 	if (!language) {
@@ -42,32 +46,12 @@ export async function runTests(services: Services, uriArg?: unknown): Promise<vo
 		return;
 	}
 
-	let meta = problem.meta;
-	const missingCore = !meta.exampleTestcases || !meta.metaData;
-	if (missingCore || meta.expectedOutputs === undefined) {
-		try {
-			const client = await createClient(services.store, meta.site);
-			const detail = await vscode.window.withProgress(
-				{ location: vscode.ProgressLocation.Notification, title: 'Loading problem test data...' },
-				() => loadProblem(client, meta.titleSlug, true)
-			);
-			await writeMetaFile(problem.folder, detail, meta.site);
-			const refreshed = await getProblemMetaForFile(uri);
-			if (refreshed) {
-				meta = refreshed.meta;
-			}
-		} catch (error) {
-			if (missingCore) {
-				throw error;
-			}
-			logInfo(`Could not refresh expected outputs for ${meta.titleSlug}: ${errorMessage(error)}`);
-		}
-	}
-	if (!meta.exampleTestcases || !meta.metaData) {
-		throw new Error('Could not load example test data for this problem. Submit online instead.');
-	}
-
-	const signature = parseMethodSignature(meta.metaData);
+	const client = await createClient(services.store, reference.site);
+	const detail = await vscode.window.withProgress(
+		{ location: vscode.ProgressLocation.Notification, title: `Loading test data from ${siteLabel(reference.site)}...` },
+		() => loadProblem(client, reference.titleSlug)
+	);
+	const signature = parseMethodSignature(detail.metaData);
 	if (!signature) {
 		throw new Error(
 			'Local testing does not support this problem type (missing method signature). Use Submit Solution to judge online.'
@@ -79,10 +63,11 @@ export async function runTests(services: Services, uriArg?: unknown): Promise<vo
 		);
 	}
 	const testcases = groupExampleTestcases(
-		meta.exampleTestcases,
+		detail.exampleTestcases,
 		signature.params.map((param) => param.name)
 	);
-	const expectedOutputs = Array.isArray(meta.expectedOutputs) ? meta.expectedOutputs : [];
+	const expectedOutputs = extractExpectedOutputs(detail.content);
+	const anyOrder = allowsAnyOrder(detail.content);
 	const source = await readSolutionText(uri);
 	const submission = extractSubmissionCode(source);
 	if (submission.warning) {
@@ -120,7 +105,7 @@ export async function runTests(services: Services, uriArg?: unknown): Promise<vo
 		await vscode.window.withProgress(
 			{
 				location: vscode.ProgressLocation.Notification,
-				title: `Running local tests: ${meta.title}`,
+				title: `Running local tests: ${detail.title}`,
 				cancellable: false,
 			},
 			async (progress) => {
@@ -150,7 +135,7 @@ export async function runTests(services: Services, uriArg?: unknown): Promise<vo
 						expected !== undefined && !specialJudge
 							? compareOutput(expected, actual, {
 									inPlace: signature.returnType === 'void',
-									unordered: meta.anyOrder === true,
+									unordered: anyOrder,
 								})
 							: undefined;
 					const casePassed =
@@ -200,7 +185,7 @@ export async function runTests(services: Services, uriArg?: unknown): Promise<vo
 					? 'The compiler did not produce an executable.'
 					: compileResult.error ?? 'Compilation failed.';
 			const report: TestRunReport = {
-				problemTitle: meta.title,
+				problemTitle: detail.title,
 				compiler,
 				compileError,
 				cases: [],
@@ -210,7 +195,7 @@ export async function runTests(services: Services, uriArg?: unknown): Promise<vo
 				expectedAvailable,
 			};
 			services.results.showTestReport(report);
-			logInfo(`Local tests for ${meta.titleSlug} failed to compile.`);
+			logInfo(`Local tests for ${reference.titleSlug} failed to compile.`);
 			void vscode.window.showWarningMessage('Local tests: compilation failed. See the result panel for details.');
 			return;
 		}
@@ -220,7 +205,7 @@ export async function runTests(services: Services, uriArg?: unknown): Promise<vo
 		).length;
 		const judgedTotal = testcases.length - skipped;
 		const report: TestRunReport = {
-			problemTitle: meta.title,
+			problemTitle: detail.title,
 			compiler,
 			cases,
 			passed,
@@ -230,7 +215,7 @@ export async function runTests(services: Services, uriArg?: unknown): Promise<vo
 		};
 		services.results.showTestReport(report);
 		logInfo(
-			`Local tests for ${meta.titleSlug}: ${passed}/${judgedTotal} comparable case(s) passed, ${skipped} skipped.`
+			`Local tests for ${reference.titleSlug}: ${passed}/${judgedTotal} comparable case(s) passed, ${skipped} skipped.`
 		);
 		const suffix = skipped > 0 ? ` ${skipped} case(s) were skipped by a special judge.` : '';
 		if (!expectedAvailable) {

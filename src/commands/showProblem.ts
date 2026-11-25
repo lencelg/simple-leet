@@ -6,7 +6,7 @@ import { Services } from '../services';
 import { Site } from '../types/problem';
 import { logInfo } from '../util/log';
 import { isSite, problemUrl, siteLabel } from '../util/site';
-import { ensureSolutionFile, getProblemMetaForFile } from '../workspace/problemStore';
+import { ensureSolutionFile, getProblemReferenceForFile, MISSING_PROBLEM_REFERENCE } from '../workspace/problemStore';
 import { availableLanguages, AvailableLanguage } from '../workspace/templateGenerator';
 import { toSummary } from './searchProblems';
 
@@ -60,14 +60,14 @@ export async function changeLanguage(services: Services, uriArg?: unknown): Prom
 	if (!uri) {
 		throw new Error('Open a LeetCode solution file first.');
 	}
-	const problem = await getProblemMetaForFile(uri);
-	if (!problem) {
-		throw new Error('This file is not inside a Simple Leet problem folder.');
+	const reference = await getProblemReferenceForFile(uri);
+	if (!reference) {
+		throw new Error(MISSING_PROBLEM_REFERENCE);
 	}
-	const client = await createClient(services.store, problem.meta.site);
+	const client = await createClient(services.store, reference.site);
 	const detail = await vscode.window.withProgress(
 		{ location: vscode.ProgressLocation.Notification, title: 'Loading available languages...' },
-		() => loadProblem(client, problem.meta.titleSlug)
+		() => loadProblem(client, reference.titleSlug)
 	);
 	const available = availableLanguages(detail);
 	if (available.length === 0) {
@@ -85,7 +85,7 @@ export async function changeLanguage(services: Services, uriArg?: unknown): Prom
 	if (!picked) {
 		return;
 	}
-	const solution = await ensureSolutionFile(detail, problem.meta.site, picked.language.slug);
+	const solution = await ensureSolutionFile(detail, reference.site, picked.language.slug);
 	await vscode.window.showTextDocument(solution.uri, {
 		viewColumn: vscode.ViewColumn.One,
 		preview: false,
@@ -93,7 +93,7 @@ export async function changeLanguage(services: Services, uriArg?: unknown): Prom
 	if (!solution.created) {
 		void vscode.window.showInformationMessage(`Opened existing ${path.basename(solution.uri.fsPath)}.`);
 	}
-	await services.tree.addRecent(toSummary(detail), problem.meta.site);
+	await services.tree.addRecent(toSummary(detail), reference.site);
 }
 
 export async function openInBrowser(services: Services, uriArg?: unknown): Promise<void> {
@@ -101,9 +101,9 @@ export async function openInBrowser(services: Services, uriArg?: unknown): Promi
 	if (!uri) {
 		throw new Error('Open a LeetCode solution file first.');
 	}
-	const problem = await getProblemMetaForFile(uri);
-	if (!problem) {
-		throw new Error('This file is not inside a Simple Leet problem folder.');
+	const reference = await getProblemReferenceForFile(uri);
+	if (!reference) {
+		throw new Error(MISSING_PROBLEM_REFERENCE);
 	}
-	await vscode.env.openExternal(vscode.Uri.parse(problemUrl(problem.meta.site, problem.meta.titleSlug)));
+	await vscode.env.openExternal(vscode.Uri.parse(problemUrl(reference.site, reference.titleSlug)));
 }

@@ -2,6 +2,10 @@ import * as assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { parseMethodSignature } from '../../leetcode/problems';
 import { ProblemDetail } from '../../types/problem';
+import {
+	parseProblemReference,
+	sanitizeProblemFileName,
+} from '../../workspace/problemReference';
 import { availableLanguages, buildSolutionTemplate } from '../../workspace/templateGenerator';
 
 const detail: ProblemDetail = {
@@ -35,7 +39,7 @@ const detail: ProblemDetail = {
 test('builds a C++ solution template with submit markers and a comment header', () => {
 	const template = buildSolutionTemplate(detail, 'leetcode.cn', 'cpp');
 	assert.ok(template);
-	assert.equal(template.fileName, 'solution.cpp');
+	assert.equal(template.language.extension, '.cpp');
 	assert.match(template.content, /^\/\/ 1\. Two Sum \(Easy\)/);
 	assert.match(template.content, /https:\/\/leetcode\.cn\/problems\/two-sum\//);
 	assert.match(template.content, /Only the code between the submit markers is sent to LeetCode\./);
@@ -48,7 +52,7 @@ test('builds a C++ solution template with submit markers and a comment header', 
 test('uses language-specific comment prefixes and extensions', () => {
 	const template = buildSolutionTemplate(detail, 'leetcode.com', 'python3');
 	assert.ok(template);
-	assert.equal(template.fileName, 'solution.py');
+	assert.equal(template.language.extension, '.py');
 	assert.match(template.content, /^# 1\. Two Sum \(Easy\)/);
 	const start = template.content.indexOf('# @simple-leet:submit-start');
 	const end = template.content.indexOf('# @simple-leet:submit-end');
@@ -81,4 +85,27 @@ test('parses method signatures including the manual judge flag', () => {
 		}
 	);
 	assert.equal(parseMethodSignature({ classname: 'MyLinkedList' }), undefined);
+});
+
+test('parses the problem URL from a generated header', () => {
+	assert.deepEqual(parseProblemReference('// https://leetcode.cn/problems/two-sum/'), {
+		site: 'leetcode.cn',
+		titleSlug: 'two-sum',
+	});
+	assert.deepEqual(parseProblemReference('See https://leetcode.com/problems/add-two-numbers/description/'), {
+		site: 'leetcode.com',
+		titleSlug: 'add-two-numbers',
+	});
+	assert.deepEqual(parseProblemReference('https://leetcode.cn/problems/two-sum'), {
+		site: 'leetcode.cn',
+		titleSlug: 'two-sum',
+	});
+	assert.equal(parseProblemReference('class Solution {};'), undefined);
+});
+
+test('sanitizes problem titles into file names', () => {
+	assert.equal(sanitizeProblemFileName('两数之和', 'two-sum'), '两数之和');
+	assert.equal(sanitizeProblemFileName('A/B:C?D*E', 'fallback'), 'A-B-C-D-E');
+	assert.equal(sanitizeProblemFileName('   ', 'two-sum'), 'two-sum');
+	assert.equal(sanitizeProblemFileName('CON', 'fallback'), '_CON');
 });

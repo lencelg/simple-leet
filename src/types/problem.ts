@@ -45,19 +45,6 @@ export interface ProblemDetail extends ProblemSummary {
 	hints: string[];
 }
 
-export interface ProblemMetaFile {
-	titleSlug: string;
-	questionId: string;
-	frontendId: string;
-	title: string;
-	difficulty: string;
-	site: Site;
-	exampleTestcases?: string;
-	metaData?: unknown;
-	expectedOutputs?: string[];
-	anyOrder?: boolean;
-}
-
 export interface RecentProblem extends ProblemSummary {
 	site: Site;
 }
