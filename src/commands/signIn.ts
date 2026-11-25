@@ -4,6 +4,7 @@ import { Services, refreshAuthUi } from '../services';
 import { Site, SITES } from '../types/problem';
 import { isSite, siteLabel } from '../util/site';
 import { logInfo } from '../util/log';
+import { reloadProblems } from './searchProblems';
 
 export async function signIn(services: Services, siteArg?: unknown): Promise<void> {
 	const site = isSite(siteArg) ? siteArg : services.store.activeSite;
@@ -12,6 +13,7 @@ export async function signIn(services: Services, siteArg?: unknown): Promise<voi
 		return;
 	}
 	await refreshAuthUi(services);
+	reloadProblems(services);
 	const name = session.username ? ` as ${session.username}` : '';
 	void vscode.window.showInformationMessage(`Signed in to ${siteLabel(site)}${name}.`);
 	if (!session.csrfToken) {
@@ -53,6 +55,7 @@ export async function signOut(services: Services): Promise<void> {
 		}
 	}
 	await refreshAuthUi(services);
+	reloadProblems(services);
 	void vscode.window.showInformationMessage(`Signed out of ${siteLabel(target)}.`);
 	logInfo(`Signed out of ${target}.`);
 }
@@ -76,8 +79,9 @@ export async function switchSite(services: Services): Promise<void> {
 		return;
 	}
 	await services.store.setActiveSite(picked.site);
-	services.tree.clearSearch();
+	services.tree.clear();
 	await refreshAuthUi(services);
+	reloadProblems(services);
 	void vscode.window.showInformationMessage(`Active site: ${siteLabel(picked.site)}.`);
 }
 

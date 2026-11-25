@@ -8,7 +8,6 @@ import { logInfo } from '../util/log';
 import { isSite, problemUrl, siteLabel } from '../util/site';
 import { ensureSolutionFile, getProblemReferenceForFile, MISSING_PROBLEM_REFERENCE } from '../workspace/problemStore';
 import { availableLanguages, AvailableLanguage } from '../workspace/templateGenerator';
-import { toSummary } from './searchProblems';
 
 function activeUri(uriArg?: unknown): vscode.Uri | undefined {
 	return uriArg instanceof vscode.Uri ? uriArg : vscode.window.activeTextEditor?.document.uri;
@@ -51,7 +50,6 @@ export async function showProblem(services: Services, slugArg?: unknown, siteArg
 		preserveFocus: false,
 	});
 	services.description.show(detail, site);
-	await services.tree.addRecent(toSummary(detail), site);
 	logInfo(`Opened ${detail.titleSlug} (${selected.language.slug}) from ${site}.`);
 }
 
@@ -93,7 +91,6 @@ export async function changeLanguage(services: Services, uriArg?: unknown): Prom
 	if (!solution.created) {
 		void vscode.window.showInformationMessage(`Opened existing ${path.basename(solution.uri.fsPath)}.`);
 	}
-	await services.tree.addRecent(toSummary(detail), reference.site);
 }
 
 export async function openInBrowser(services: Services, uriArg?: unknown): Promise<void> {

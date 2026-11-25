@@ -1,12 +1,11 @@
 import * as vscode from 'vscode';
 import { createClient } from '../leetcode/auth';
-import { ProblemListPage } from '../leetcode/client';
+import { LeetCodeClient, ProblemListPage } from '../leetcode/client';
 import { Services } from '../services';
-import { ProblemSummary, RecentProblem, Site } from '../types/problem';
+import { Difficulty, Site, SiteProblem } from '../types/problem';
+import { errorMessage } from '../util/errors';
+import { logError, logInfo } from '../util/log';
 import { siteLabel } from '../util/site';
-import { logInfo } from '../util/log';
-
-type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
 
 interface DifficultyPick extends vscode.QuickPickItem {
 	value?: Difficulty;
@@ -19,25 +18,156 @@ const DIFFICULTIES: DifficultyPick[] = [
 	{ label: 'Hard', value: 'HARD' },
 ];
 
-async function fetchPage(
-	services: Services,
-	site: Site,
-	query: string,
-	difficulty: Difficulty | undefined,
-	skip: number
+const PAGE_SIZE = 100;
+const PAGE_CONCURRENCY = 4;
+const BATCH_DELAY_MS = 80;
+
+let loadGeneration = 0;
+
+interface LoadOptions {
+	site: Site;
+	query: string;
+	difficulty?: Difficulty;
+	focus?: boolean;
+	silent?: boolean;
+}
+
+function delay(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchPageWithRetry(
+	client: LeetCodeClient,
+	options: LoadOptions,
+	skip: number,
+	limit: number
 ): Promise<ProblemListPage> {
-	const client = await createClient(services.store, site);
-	const limit = vscode.workspace.getConfiguration('simple-leet').get<number>('paginationSize', 50);
-	return vscode.window.withProgress(
-		{ location: vscode.ProgressLocation.Notification, title: `Searching ${siteLabel(site)}...` },
-		() => client.fetchProblemList({ search: query, difficulty, skip, limit })
+	try {
+		return await client.fetchProblemList({
+			search: options.query,
+			difficulty: options.difficulty,
+			skip,
+			limit,
+		});
+	} catch (error) {
+		logInfo(`Retrying problem page at ${skip}: ${errorMessage(error)}`);
+		await delay(500);
+		return client.fetchProblemList({
+			search: options.query,
+			difficulty: options.difficulty,
+			skip,
+			limit,
+		});
+	}
+}
+
+async function loadRemaining(
+	client: LeetCodeClient,
+	services: Services,
+	generation: number,
+	options: LoadOptions,
+	limit: number,
+	total: number
+): Promise<void> {
+	const pages = Math.ceil(total / limit);
+	try {
+		for (let pageIndex = 1; pageIndex < pages; pageIndex += PAGE_CONCURRENCY) {
+			if (generation !== loadGeneration) {
+				return;
+			}
+			const batch: number[] = [];
+			for (let index = pageIndex; index < Math.min(pageIndex + PAGE_CONCURRENCY, pages); index += 1) {
+				batch.push(index);
+			}
+			const results = await Promise.allSettled(
+				batch.map((index) => fetchPageWithRetry(client, options, index * limit, limit))
+			);
+			if (generation !== loadGeneration) {
+				return;
+			}
+			for (const result of results) {
+				if (result.status === 'fulfilled') {
+					const items: SiteProblem[] = result.value.problems.map((problem) => ({
+						...problem,
+						site: options.site,
+					}));
+					services.tree.appendProblems(items, total);
+				} else {
+					logError('load problems page', result.reason);
+				}
+			}
+			await delay(BATCH_DELAY_MS);
+		}
+		if (generation === loadGeneration) {
+			logInfo(
+				`Problem list ready: ${services.tree.listState?.items.length ?? 0}/${total} from ${options.site}.`
+			);
+		}
+	} catch (error) {
+		logError('load remaining problems', error);
+	}
+}
+
+export async function loadProblemList(services: Services, options: LoadOptions): Promise<void> {
+	const generation = ++loadGeneration;
+	const limit = PAGE_SIZE;
+	const client = await createClient(services.store, options.site);
+	const fetchFirstPage = () =>
+		client.fetchProblemList({
+			search: options.query,
+			difficulty: options.difficulty,
+			skip: 0,
+			limit,
+		});
+	const first = options.silent
+		? await fetchFirstPage()
+		: await vscode.window.withProgress(
+				{
+					location: vscode.ProgressLocation.Notification,
+					title: `Loading problems from ${siteLabel(options.site)}...`,
+				},
+				fetchFirstPage
+			);
+	if (generation !== loadGeneration) {
+		return;
+	}
+	const items: SiteProblem[] = first.problems.map((problem) => ({ ...problem, site: options.site }));
+	services.tree.setList({
+		query: options.query,
+		difficulty: options.difficulty,
+		site: options.site,
+		total: first.total,
+		items,
+	});
+	if (options.focus) {
+		await vscode.commands.executeCommand('simple-leet.problems.focus');
+	}
+	logInfo(
+		`Loaded ${items.length}/${first.total} problems from ${options.site}${options.query ? ` for "${options.query}"` : ''}.`
 	);
+	if (items.length < first.total) {
+		void loadRemaining(client, services, generation, options, limit, first.total);
+	}
+}
+
+export function reloadProblems(services: Services): void {
+	const site = services.store.activeSite;
+	const state = services.tree.listState;
+	const sameSite = state?.site === site;
+	void loadProblemList(services, {
+		site,
+		query: sameSite ? state?.query ?? '' : '',
+		difficulty: sameSite ? state?.difficulty : undefined,
+		silent: true,
+	}).catch((error) => {
+		logError('reload problems', error);
+	});
 }
 
 export async function searchProblems(services: Services): Promise<void> {
 	const keyword = await vscode.window.showInputBox({
 		title: 'Search LeetCode Problems',
-		prompt: 'Enter keywords, a problem number, or leave empty to list problems.',
+		prompt: 'Enter keywords, a problem number, or leave empty to list all problems.',
 		placeHolder: 'e.g. two sum, graph, 42',
 		ignoreFocusOut: true,
 	});
@@ -51,72 +181,28 @@ export async function searchProblems(services: Services): Promise<void> {
 	if (!difficulty) {
 		return;
 	}
-	await runSearch(services, services.store.activeSite, keyword.trim(), difficulty.value, false);
-}
-
-async function runSearch(
-	services: Services,
-	site: Site,
-	query: string,
-	difficulty: Difficulty | undefined,
-	append: boolean
-): Promise<void> {
-	const skip = append ? services.tree.searchState?.items.length ?? 0 : 0;
-	const page = await fetchPage(services, site, query, difficulty, skip);
-	const items: RecentProblem[] = page.problems.map((problem) => ({ ...problem, site }));
-	if (append && services.tree.searchState) {
-		services.tree.appendSearch(items, page.total);
-		if (items.length === 0) {
-			void vscode.window.showInformationMessage('No more problems to load.');
-		}
-		return;
-	}
-	services.tree.setSearch({
-		query,
-		difficulty,
-		site,
-		total: page.total,
-		items,
+	await loadProblemList(services, {
+		site: services.store.activeSite,
+		query: keyword.trim(),
+		difficulty: difficulty.value,
+		focus: true,
 	});
-	await vscode.commands.executeCommand('simple-leet.problems.focus');
-	if (items.length === 0) {
+	const state = services.tree.listState;
+	if (state && state.total === 0) {
 		void vscode.window.showInformationMessage('No problems matched the search.');
+	}
+}
+
+export async function refreshProblems(services: Services): Promise<void> {
+	const state = services.tree.listState;
+	const site = services.store.activeSite;
+	if (state && state.site === site) {
+		await loadProblemList(services, {
+			site,
+			query: state.query,
+			difficulty: state.difficulty,
+		});
 	} else {
-		logInfo(`Search "${query || '*'}" on ${site}: ${items.length}/${page.total} result(s).`);
+		await loadProblemList(services, { site, query: '' });
 	}
-}
-
-export async function refreshSearch(services: Services): Promise<void> {
-	const state = services.tree.searchState;
-	if (!state) {
-		void vscode.window.showInformationMessage('Search for problems first.');
-		return;
-	}
-	await runSearch(services, state.site, state.query, state.difficulty, false);
-}
-
-export async function loadMore(services: Services): Promise<void> {
-	const state = services.tree.searchState;
-	if (!state) {
-		void vscode.window.showInformationMessage('Search for problems first.');
-		return;
-	}
-	if (state.items.length >= state.total) {
-		void vscode.window.showInformationMessage('All search results are already loaded.');
-		return;
-	}
-	await runSearch(services, state.site, state.query, state.difficulty, true);
-}
-
-export function toSummary(problem: ProblemSummary): ProblemSummary {
-	return {
-		questionFrontendId: problem.questionFrontendId,
-		title: problem.title,
-		titleSlug: problem.titleSlug,
-		difficulty: problem.difficulty,
-		paidOnly: problem.paidOnly,
-		acRate: problem.acRate,
-		status: problem.status,
-		topicTags: problem.topicTags,
-	};
 }

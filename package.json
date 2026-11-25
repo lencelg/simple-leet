@@ -43,12 +43,12 @@
     "viewsWelcome": [
       {
         "view": "simple-leet.problems",
-        "contents": "Search LeetCode problems and open them in your workspace.\n[Search Problems](command:simple-leet.searchProblems)\n[Sign In](command:simple-leet.signIn)\nYou can browse without signing in. Sign-in is required to submit.",
+        "contents": "Search LeetCode problems and open them locally.\n[Search Problems](command:simple-leet.searchProblems)\n[Sign In](command:simple-leet.signIn)\nYou can browse without signing in. Sign-in is required to submit.",
         "when": "!simple-leet.signedIn"
       },
       {
         "view": "simple-leet.problems",
-        "contents": "Search LeetCode problems and open them in your workspace.\n[Search Problems](command:simple-leet.searchProblems)",
+        "contents": "Search LeetCode problems and open them locally.\n[Search Problems](command:simple-leet.searchProblems)",
         "when": "simple-leet.signedIn"
       }
     ],
@@ -84,19 +84,14 @@
         "icon": "$(search)"
       },
       {
-        "command": "simple-leet.refreshSearch",
-        "title": "Refresh Search Results",
+        "command": "simple-leet.refreshProblems",
+        "title": "Refresh Problems",
         "category": "LeetCode",
         "icon": "$(refresh)"
       },
       {
         "command": "simple-leet.showProblem",
         "title": "Show Problem",
-        "category": "LeetCode"
-      },
-      {
-        "command": "simple-leet.loadMore",
-        "title": "Load More Problems",
         "category": "LeetCode"
       },
       {
@@ -132,7 +127,7 @@
           "group": "navigation@1"
         },
         {
-          "command": "simple-leet.refreshSearch",
+          "command": "simple-leet.refreshProblems",
           "when": "view == simple-leet.problems",
           "group": "navigation@2"
         },
@@ -179,10 +174,6 @@
       "commandPalette": [
         {
           "command": "simple-leet.showProblem",
-          "when": "false"
-        },
-        {
-          "command": "simple-leet.loadMore",
           "when": "false"
         }
       ]
@@ -246,13 +237,6 @@
           "default": 60000,
           "minimum": 5000,
           "description": "Maximum time to wait for a LeetCode judge result in milliseconds."
-        },
-        "simple-leet.paginationSize": {
-          "type": "number",
-          "default": 50,
-          "minimum": 10,
-          "maximum": 100,
-          "description": "Number of problems fetched per search page."
         }
       }
     }

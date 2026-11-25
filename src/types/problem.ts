@@ -1,5 +1,7 @@
 export type Site = 'leetcode.com' | 'leetcode.cn';
 
+export type Difficulty = 'EASY' | 'MEDIUM' | 'HARD';
+
 export const SITES: readonly Site[] = ['leetcode.cn', 'leetcode.com'];
 
 export interface TopicTag {
@@ -45,6 +47,6 @@ export interface ProblemDetail extends ProblemSummary {
 	hints: string[];
 }
 
-export interface RecentProblem extends ProblemSummary {
+export interface SiteProblem extends ProblemSummary {
 	site: Site;
 }

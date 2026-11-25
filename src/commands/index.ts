@@ -4,7 +4,7 @@ import { errorMessage } from '../util/errors';
 import { logError } from '../util/log';
 import { runTests } from './runTests';
 import { changeLanguage, openInBrowser, showProblem } from './showProblem';
-import { loadMore, refreshSearch, searchProblems } from './searchProblems';
+import { refreshProblems, searchProblems } from './searchProblems';
 import { accountMenu, signIn, signOut, switchSite } from './signIn';
 import { submitSolution } from './submit';
 
@@ -30,8 +30,7 @@ export function registerAllCommands(services: Services): vscode.Disposable[] {
 		register(services, 'simple-leet.accountMenu', () => accountMenu(services)),
 		register(services, 'simple-leet.switchSite', () => switchSite(services)),
 		register(services, 'simple-leet.searchProblems', () => searchProblems(services)),
-		register(services, 'simple-leet.refreshSearch', () => refreshSearch(services)),
-		register(services, 'simple-leet.loadMore', () => loadMore(services)),
+		register(services, 'simple-leet.refreshProblems', () => refreshProblems(services)),
 		register(services, 'simple-leet.showProblem', (slug?: unknown, site?: unknown) =>
 			showProblem(services, slug, site)
 		),

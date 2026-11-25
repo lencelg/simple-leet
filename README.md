@@ -5,7 +5,7 @@ A small LeetCode extension for VS Code: sign in to **leetcode.cn** or **leetcode
 ## Features
 
 - **Sign in with your browser session** for LeetCode China and LeetCode Global. Sessions are stored per site in VS Code `SecretStorage`, never in settings, source files or logs.
-- **Problem explorer** with keyword search, difficulty filter, pagination and recent problems.
+- **Problem explorer** that loads the full problem list, with keyword search, difficulty filter and Solved markers.
 - **Solutions stored directly in `~/.leetcode`**, named after the problem title; no per-problem folders or metadata files.
 - **Problem description** in a side panel, with tags, acceptance rate, hints and a link to the website.
 - **Multi-language templates**: C++, C, C#, Go, Java, JavaScript, Kotlin, PHP, Python 3, Ruby, Rust, Scala, Swift, TypeScript and MySQL. The template is generated from the problem's official snippet.
@@ -50,7 +50,7 @@ All commands are in English under the **LeetCode** category:
 | Sign In / Sign Out | Manage the session of the active site |
 | Switch Site | Choose LeetCode China or LeetCode Global |
 | Search Problems | Search by keyword and difficulty |
-| Refresh Search Results | Re-run the current search |
+| Refresh Problems | Reload the current list or search results |
 | Show Problem | Open a problem file and description |
 | Change Language | Generate or open a solution in another language |
 | Run Tests | Compile and run the examples locally (C++) |
@@ -68,7 +68,6 @@ All commands are in English under the **LeetCode** category:
 | `simple-leet.compilerPath` | empty | C++ compiler; empty auto-detects `g++`, `clang++` |
 | `simple-leet.testTimeoutMs` | `10000` | Per-case local test timeout |
 | `simple-leet.submissionTimeoutMs` | `60000` | Judge polling timeout |
-| `simple-leet.paginationSize` | `50` | Problems fetched per search page |
 
 ## Submit markers
 

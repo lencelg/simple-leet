@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { registerAllCommands } from './commands';
+import { reloadProblems } from './commands/searchProblems';
 import { SessionStore } from './leetcode/auth';
 import { DescriptionPanel } from './panels/descriptionPanel';
 import { ResultsPanel } from './panels/resultsPanel';
@@ -16,7 +17,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 	const tree = new ProblemTreeProvider(context);
 	const treeView = vscode.window.createTreeView('simple-leet.problems', {
 		treeDataProvider: tree,
-		showCollapseAll: true,
 	});
 	const statusBar = new AccountStatusBar();
 	const description = new DescriptionPanel(context.extensionUri);
@@ -29,6 +29,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		description,
 		results,
 	};
+	let initialLoadStarted = false;
+	const startInitialLoad = () => {
+		if (initialLoadStarted) {
+			return;
+		}
+		initialLoadStarted = true;
+		reloadProblems(services);
+	};
 
 	context.subscriptions.push(
 		output,
@@ -38,11 +46,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		description,
 		results,
 		new ActiveProblemTracker(),
+		treeView.onDidChangeVisibility((event) => {
+			if (event.visible && !services.tree.listState) {
+				startInitialLoad();
+			}
+		}),
 		vscode.languages.registerCodeLensProvider({ scheme: 'file' }, new ProblemCodeLensProvider()),
 		...registerAllCommands(services)
 	);
 
 	await refreshAuthUi(services);
+	if (treeView.visible) {
+		startInitialLoad();
+	}
 }
 
 export function deactivate(): void {
