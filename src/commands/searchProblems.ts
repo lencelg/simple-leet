@@ -2,21 +2,10 @@ import * as vscode from 'vscode';
 import { createClient } from '../leetcode/auth';
 import { LeetCodeClient, ProblemListPage } from '../leetcode/client';
 import { Services } from '../services';
-import { Difficulty, Site, SiteProblem } from '../types/problem';
+import { Site, SiteProblem } from '../types/problem';
 import { errorMessage } from '../util/errors';
 import { logError, logInfo } from '../util/log';
 import { siteLabel } from '../util/site';
-
-interface DifficultyPick extends vscode.QuickPickItem {
-	value?: Difficulty;
-}
-
-const DIFFICULTIES: DifficultyPick[] = [
-	{ label: 'All Difficulties', value: undefined },
-	{ label: 'Easy', value: 'EASY' },
-	{ label: 'Medium', value: 'MEDIUM' },
-	{ label: 'Hard', value: 'HARD' },
-];
 
 const PAGE_SIZE = 100;
 const PAGE_CONCURRENCY = 4;
@@ -27,7 +16,6 @@ let loadGeneration = 0;
 interface LoadOptions {
 	site: Site;
 	query: string;
-	difficulty?: Difficulty;
 	focus?: boolean;
 	silent?: boolean;
 }
@@ -45,7 +33,6 @@ async function fetchPageWithRetry(
 	try {
 		return await client.fetchProblemList({
 			search: options.query,
-			difficulty: options.difficulty,
 			skip,
 			limit,
 		});
@@ -54,7 +41,6 @@ async function fetchPageWithRetry(
 		await delay(500);
 		return client.fetchProblemList({
 			search: options.query,
-			difficulty: options.difficulty,
 			skip,
 			limit,
 		});
@@ -85,16 +71,18 @@ async function loadRemaining(
 			if (generation !== loadGeneration) {
 				return;
 			}
+			const batchItems: SiteProblem[] = [];
 			for (const result of results) {
 				if (result.status === 'fulfilled') {
-					const items: SiteProblem[] = result.value.problems.map((problem) => ({
-						...problem,
-						site: options.site,
-					}));
-					services.tree.appendProblems(items, total);
+					for (const problem of result.value.problems) {
+						batchItems.push({ ...problem, site: options.site });
+					}
 				} else {
 					logError('load problems page', result.reason);
 				}
+			}
+			if (batchItems.length > 0) {
+				services.tree.appendProblems(batchItems, total);
 			}
 			await delay(BATCH_DELAY_MS);
 		}
@@ -115,7 +103,6 @@ export async function loadProblemList(services: Services, options: LoadOptions):
 	const fetchFirstPage = () =>
 		client.fetchProblemList({
 			search: options.query,
-			difficulty: options.difficulty,
 			skip: 0,
 			limit,
 		});
@@ -134,7 +121,6 @@ export async function loadProblemList(services: Services, options: LoadOptions):
 	const items: SiteProblem[] = first.problems.map((problem) => ({ ...problem, site: options.site }));
 	services.tree.setList({
 		query: options.query,
-		difficulty: options.difficulty,
 		site: options.site,
 		total: first.total,
 		items,
@@ -157,10 +143,10 @@ export function reloadProblems(services: Services): void {
 	void loadProblemList(services, {
 		site,
 		query: sameSite ? state?.query ?? '' : '',
-		difficulty: sameSite ? state?.difficulty : undefined,
 		silent: true,
 	}).catch((error) => {
 		logError('reload problems', error);
+		void vscode.window.showWarningMessage(`Could not load problems: ${errorMessage(error)}`);
 	});
 }
 
@@ -174,17 +160,9 @@ export async function searchProblems(services: Services): Promise<void> {
 	if (keyword === undefined) {
 		return;
 	}
-	const difficulty = await vscode.window.showQuickPick(DIFFICULTIES, {
-		title: 'Difficulty',
-		placeHolder: 'Filter by difficulty',
-	});
-	if (!difficulty) {
-		return;
-	}
 	await loadProblemList(services, {
 		site: services.store.activeSite,
 		query: keyword.trim(),
-		difficulty: difficulty.value,
 		focus: true,
 	});
 	const state = services.tree.listState;
@@ -200,7 +178,6 @@ export async function refreshProblems(services: Services): Promise<void> {
 		await loadProblemList(services, {
 			site,
 			query: state.query,
-			difficulty: state.difficulty,
 		});
 	} else {
 		await loadProblemList(services, { site, query: '' });

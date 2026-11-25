@@ -8,17 +8,27 @@ const DIFFICULTY_LABELS: Record<string, string> = {
 	HARD: 'Hard',
 };
 
+type CategoryKey = 'ALL' | Difficulty;
+
+const CATEGORY_KEYS: CategoryKey[] = ['ALL', 'EASY', 'MEDIUM', 'HARD'];
+const CATEGORY_LABELS: Record<CategoryKey, string> = {
+	ALL: 'All',
+	EASY: 'Easy',
+	MEDIUM: 'Medium',
+	HARD: 'Hard',
+};
+
 export interface ProblemListState {
 	query: string;
-	difficulty?: Difficulty;
 	site: Site;
 	total: number;
 	items: SiteProblem[];
 }
 
+type CategoryNode = { type: 'category'; key: CategoryKey };
 type ProblemNode = { type: 'problem'; problem: SiteProblem };
 
-export type ProblemTreeNode = ProblemNode;
+export type ProblemTreeNode = CategoryNode | ProblemNode;
 
 function difficultyLabel(difficulty: string): string {
 	return DIFFICULTY_LABELS[difficulty.toUpperCase()] ?? difficulty;
@@ -41,6 +51,11 @@ export class ProblemTreeProvider implements vscode.TreeDataProvider<ProblemTreeN
 	private readonly emitter = new vscode.EventEmitter<ProblemTreeNode | undefined>();
 	readonly onDidChangeTreeData = this.emitter.event;
 
+	private readonly categories: CategoryNode[] = CATEGORY_KEYS.map((key) => ({
+		type: 'category',
+		key,
+	}));
+
 	private list?: ProblemListState;
 
 	constructor(private readonly context: vscode.ExtensionContext) {}
@@ -51,7 +66,7 @@ export class ProblemTreeProvider implements vscode.TreeDataProvider<ProblemTreeN
 
 	setList(state: ProblemListState): void {
 		this.list = state;
-		this.refresh();
+		this.refreshCategories();
 	}
 
 	appendProblems(items: SiteProblem[], total: number): void {
@@ -63,30 +78,78 @@ export class ProblemTreeProvider implements vscode.TreeDataProvider<ProblemTreeN
 			items: [...this.list.items, ...items],
 			total,
 		};
-		this.refresh();
+		this.refreshCategories();
 	}
 
 	clear(): void {
 		this.list = undefined;
-		this.refresh();
+		this.refreshCategories();
 	}
 
 	refresh(): void {
-		this.emitter.fire(undefined);
+		this.refreshCategories();
 	}
 
 	dispose(): void {
 		this.emitter.dispose();
 	}
 
-	getChildren(element?: ProblemTreeNode): ProblemTreeNode[] {
-		if (element) {
+	private refreshCategories(): void {
+		// Keep the category node instances stable so expanded groups stay open while pages load.
+		for (const category of this.categories) {
+			this.emitter.fire(category);
+		}
+	}
+
+	private problemsFor(key: CategoryKey): SiteProblem[] {
+		if (!this.list) {
 			return [];
 		}
-		return (this.list?.items ?? []).map((problem) => ({ type: 'problem', problem }));
+		if (key === 'ALL') {
+			return this.list.items;
+		}
+		return this.list.items.filter((problem) => problem.difficulty.toUpperCase() === key);
+	}
+
+	private countLabel(key: CategoryKey): string {
+		if (!this.list) {
+			return '…';
+		}
+		const loading = this.list.items.length < this.list.total;
+		if (key === 'ALL') {
+			return loading ? `${this.list.items.length}/${this.list.total}` : `${this.list.total}`;
+		}
+		const count = this.problemsFor(key).length;
+		return loading ? `${count}+` : `${count}`;
+	}
+
+	getChildren(element?: ProblemTreeNode): ProblemTreeNode[] {
+		if (!element) {
+			return this.categories;
+		}
+		if (element.type === 'category') {
+			return this.problemsFor(element.key).map((problem) => ({ type: 'problem', problem }));
+		}
+		return [];
 	}
 
 	getTreeItem(element: ProblemTreeNode): vscode.TreeItem {
+		if (element.type === 'category') {
+			const label = CATEGORY_LABELS[element.key];
+			const item = new vscode.TreeItem(label, vscode.TreeItemCollapsibleState.Collapsed);
+			item.description = this.countLabel(element.key);
+			item.iconPath =
+				element.key === 'ALL'
+					? new vscode.ThemeIcon('list-unordered')
+					: difficultyIcon(this.context.extensionUri, element.key);
+			item.contextValue = 'category';
+			item.tooltip = `${label} problems`;
+			item.accessibilityInformation = {
+				label: `${label} problems, ${this.problemsFor(element.key).length} loaded`,
+			};
+			return item;
+		}
+
 		const problem = element.problem;
 		const item = new vscode.TreeItem(
 			`${problem.questionFrontendId}. ${problem.title}`,
