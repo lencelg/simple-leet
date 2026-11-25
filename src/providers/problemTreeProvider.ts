@@ -19,7 +19,6 @@ const CATEGORY_LABELS: Record<CategoryKey, string> = {
 };
 
 export interface ProblemListState {
-	query: string;
 	site: Site;
 	total: number;
 	items: SiteProblem[];

@@ -5,7 +5,7 @@ A small LeetCode extension for VS Code: sign in to **leetcode.cn** or **leetcode
 ## Features
 
 - **Sign in with your browser session** for LeetCode China and LeetCode Global. Sessions are stored per site in VS Code `SecretStorage`, never in settings, source files or logs.
-- **Problem explorer** grouped into **All**, **Easy**, **Medium** and **Hard** categories, with keyword search and Solved markers.
+- **Problem explorer** grouped into **All**, **Easy**, **Medium** and **Hard** categories, with a live-filtering problem picker and Solved markers.
 - **Solutions stored directly in `~/.leetcode`**, named after the problem title; no per-problem folders or metadata files.
 - **Problem description** in a side panel, with tags, acceptance rate, hints and a link to the website.
 - **Multi-language templates**: C++, C, C#, Go, Java, JavaScript, Kotlin, PHP, Python 3, Ruby, Rust, Scala, Swift, TypeScript and MySQL. The template is generated from the problem's official snippet.
@@ -24,7 +24,7 @@ A small LeetCode extension for VS Code: sign in to **leetcode.cn** or **leetcode
 1. Solutions are stored in `~/.leetcode/<problem title>.<ext>` by default, for example `~/.leetcode/两数之和.cpp`. You can change the folder with `simple-leet.solutionFolder`; no workspace folder is required.
 2. Pick a site with **LeetCode: Switch Site** (default is `leetcode.cn`).
 3. Optional for browsing, required for submitting: **LeetCode: Sign In**. See below for the cookie values.
-4. Run **LeetCode: Search Problems**, enter keywords (or leave empty), then expand a category and select a problem from the sidebar.
+4. Run **LeetCode: Search Problems** and type keywords. Pick a problem from the live-filtered list, choose a language, and the solution file is created in your solution folder with the problem description beside the editor. In the language picker, use the back button to return to the search with your query preserved.
 5. Edit the generated file.
    - `LeetCode: Run Tests` compiles and runs the example cases locally (C++ only).
    - `LeetCode: Submit Solution` sends the marked section to the LeetCode judge.
@@ -49,7 +49,7 @@ All commands are in English under the **LeetCode** category:
 | --- | --- |
 | Sign In / Sign Out | Manage the session of the active site |
 | Switch Site | Choose LeetCode China or LeetCode Global |
-| Search Problems | Search by keyword |
+| Search Problems | Find a problem, choose a language and create the solution file |
 | Refresh Problems | Reload the current list or search results |
 | Show Problem | Open a problem file and description |
 | Change Language | Generate or open a solution in another language |

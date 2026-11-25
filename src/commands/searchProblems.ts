@@ -1,23 +1,33 @@
 import * as vscode from 'vscode';
 import { createClient } from '../leetcode/auth';
 import { LeetCodeClient, ProblemListPage } from '../leetcode/client';
+import { loadProblem } from '../leetcode/problems';
 import { Services } from '../services';
-import { Site, SiteProblem } from '../types/problem';
+import { ProblemDetail, Site, SiteProblem } from '../types/problem';
 import { errorMessage } from '../util/errors';
 import { logError, logInfo } from '../util/log';
 import { siteLabel } from '../util/site';
+import { ensureSolutionFile } from '../workspace/problemStore';
+import { AvailableLanguage, availableLanguages } from '../workspace/templateGenerator';
 
 const PAGE_SIZE = 100;
 const PAGE_CONCURRENCY = 4;
 const BATCH_DELAY_MS = 80;
 
 let loadGeneration = 0;
+let activeLoad: Promise<void> | undefined;
 
 interface LoadOptions {
 	site: Site;
-	query: string;
-	focus?: boolean;
 	silent?: boolean;
+}
+
+interface ProblemPickItem extends vscode.QuickPickItem {
+	problem: SiteProblem;
+}
+
+interface LanguagePickItem extends vscode.QuickPickItem {
+	available: AvailableLanguage;
 }
 
 function delay(ms: number): Promise<void> {
@@ -26,24 +36,15 @@ function delay(ms: number): Promise<void> {
 
 async function fetchPageWithRetry(
 	client: LeetCodeClient,
-	options: LoadOptions,
 	skip: number,
 	limit: number
 ): Promise<ProblemListPage> {
 	try {
-		return await client.fetchProblemList({
-			search: options.query,
-			skip,
-			limit,
-		});
+		return await client.fetchProblemList({ skip, limit });
 	} catch (error) {
 		logInfo(`Retrying problem page at ${skip}: ${errorMessage(error)}`);
 		await delay(500);
-		return client.fetchProblemList({
-			search: options.query,
-			skip,
-			limit,
-		});
+		return client.fetchProblemList({ skip, limit });
 	}
 }
 
@@ -51,7 +52,7 @@ async function loadRemaining(
 	client: LeetCodeClient,
 	services: Services,
 	generation: number,
-	options: LoadOptions,
+	site: Site,
 	limit: number,
 	total: number
 ): Promise<void> {
@@ -66,7 +67,7 @@ async function loadRemaining(
 				batch.push(index);
 			}
 			const results = await Promise.allSettled(
-				batch.map((index) => fetchPageWithRetry(client, options, index * limit, limit))
+				batch.map((index) => fetchPageWithRetry(client, index * limit, limit))
 			);
 			if (generation !== loadGeneration) {
 				return;
@@ -75,7 +76,7 @@ async function loadRemaining(
 			for (const result of results) {
 				if (result.status === 'fulfilled') {
 					for (const problem of result.value.problems) {
-						batchItems.push({ ...problem, site: options.site });
+						batchItems.push({ ...problem, site });
 					}
 				} else {
 					logError('load problems page', result.reason);
@@ -87,25 +88,17 @@ async function loadRemaining(
 			await delay(BATCH_DELAY_MS);
 		}
 		if (generation === loadGeneration) {
-			logInfo(
-				`Problem list ready: ${services.tree.listState?.items.length ?? 0}/${total} from ${options.site}.`
-			);
+			logInfo(`Problem list ready: ${services.tree.listState?.items.length ?? 0}/${total} from ${site}.`);
 		}
 	} catch (error) {
 		logError('load remaining problems', error);
 	}
 }
 
-export async function loadProblemList(services: Services, options: LoadOptions): Promise<void> {
-	const generation = ++loadGeneration;
+async function runLoad(services: Services, options: LoadOptions, generation: number): Promise<void> {
 	const limit = PAGE_SIZE;
 	const client = await createClient(services.store, options.site);
-	const fetchFirstPage = () =>
-		client.fetchProblemList({
-			search: options.query,
-			skip: 0,
-			limit,
-		});
+	const fetchFirstPage = () => client.fetchProblemList({ skip: 0, limit });
 	const first = options.silent
 		? await fetchFirstPage()
 		: await vscode.window.withProgress(
@@ -120,29 +113,32 @@ export async function loadProblemList(services: Services, options: LoadOptions):
 	}
 	const items: SiteProblem[] = first.problems.map((problem) => ({ ...problem, site: options.site }));
 	services.tree.setList({
-		query: options.query,
 		site: options.site,
 		total: first.total,
 		items,
 	});
-	if (options.focus) {
-		await vscode.commands.executeCommand('simple-leet.problems.focus');
-	}
-	logInfo(
-		`Loaded ${items.length}/${first.total} problems from ${options.site}${options.query ? ` for "${options.query}"` : ''}.`
-	);
+	logInfo(`Loaded ${items.length}/${first.total} problems from ${options.site}.`);
 	if (items.length < first.total) {
-		void loadRemaining(client, services, generation, options, limit, first.total);
+		await loadRemaining(client, services, generation, options.site, limit, first.total);
 	}
 }
 
+export function loadProblemList(services: Services, options: LoadOptions): Promise<void> {
+	const generation = ++loadGeneration;
+	const operation = runLoad(services, options, generation);
+	activeLoad = operation;
+	const clearActive = (): void => {
+		if (activeLoad === operation) {
+			activeLoad = undefined;
+		}
+	};
+	void operation.then(clearActive, clearActive);
+	return operation;
+}
+
 export function reloadProblems(services: Services): void {
-	const site = services.store.activeSite;
-	const state = services.tree.listState;
-	const sameSite = state?.site === site;
 	void loadProblemList(services, {
-		site,
-		query: sameSite ? state?.query ?? '' : '',
+		site: services.store.activeSite,
 		silent: true,
 	}).catch((error) => {
 		logError('reload problems', error);
@@ -150,36 +146,186 @@ export function reloadProblems(services: Services): void {
 	});
 }
 
-export async function searchProblems(services: Services): Promise<void> {
-	const keyword = await vscode.window.showInputBox({
-		title: 'Search LeetCode Problems',
-		prompt: 'Enter keywords, a problem number, or leave empty to list all problems.',
-		placeHolder: 'e.g. two sum, graph, 42',
-		ignoreFocusOut: true,
-	});
-	if (keyword === undefined) {
+async function ensureAllProblems(services: Services): Promise<void> {
+	const site = services.store.activeSite;
+	const state = services.tree.listState;
+	if (state && state.site === site && state.items.length >= state.total) {
 		return;
 	}
-	await loadProblemList(services, {
-		site: services.store.activeSite,
-		query: keyword.trim(),
-		focus: true,
+	if (activeLoad) {
+		await activeLoad;
+		const updated = services.tree.listState;
+		if (updated && updated.site === site && updated.items.length >= updated.total) {
+			return;
+		}
+	}
+	await loadProblemList(services, { site, silent: true });
+}
+
+function firstLine(code: string): string {
+	const line = code.split('\n').map((item) => item.trim()).find((item) => item.length > 0);
+	return line ? line.slice(0, 100) : '';
+}
+
+function toProblemItem(problem: SiteProblem): ProblemPickItem {
+	const rate =
+		typeof problem.acRate === 'number' && Number.isFinite(problem.acRate)
+			? `AC: ${Math.round(problem.acRate)}% | `
+			: '';
+	return {
+		label: `${problem.questionFrontendId}. ${problem.title}`,
+		description: problem.status === 'ac' ? 'Solved' : '',
+		detail: `${rate}${problem.difficulty}`,
+		problem,
+	};
+}
+
+function pickProblem(
+	items: SiteProblem[],
+	initialQuery: string
+): Promise<{ item: ProblemPickItem; query: string } | undefined> {
+	const picker = vscode.window.createQuickPick<ProblemPickItem>();
+	picker.title = 'Search LeetCode Problems';
+	picker.placeholder = 'Type to filter problems';
+	picker.items = items.map(toProblemItem);
+	picker.matchOnDescription = true;
+	picker.matchOnDetail = true;
+	picker.value = initialQuery;
+
+	return new Promise((resolve) => {
+		let accepted = false;
+		picker.onDidAccept(() => {
+			const item = picker.selectedItems[0] ?? picker.activeItems[0];
+			if (!item) {
+				return;
+			}
+			accepted = true;
+			resolve({ item, query: picker.value });
+			picker.hide();
+		});
+		picker.onDidHide(() => {
+			if (!accepted) {
+				resolve(undefined);
+			}
+			picker.dispose();
+		});
+		picker.show();
 	});
+}
+
+function pickLanguage(detail: ProblemDetail): Promise<AvailableLanguage | 'back' | undefined> {
+	const available = availableLanguages(detail);
+	if (available.length === 0) {
+		throw new Error('This problem does not provide code snippets for a supported language.');
+	}
+	const picker = vscode.window.createQuickPick<LanguagePickItem>();
+	picker.title = `Select Language for ${detail.questionFrontendId}. ${detail.title}`;
+	picker.placeholder = 'Choose a language for the solution file';
+	picker.items = available.map((entry) => ({
+		label: entry.language.name,
+		description: entry.language.slug,
+		detail: firstLine(entry.snippet.code),
+		available: entry,
+	}));
+	const preferred = vscode.workspace
+		.getConfiguration('simple-leet')
+		.get<string>('defaultLanguage', 'cpp');
+	const preferredItem = picker.items.find((item) => item.available.language.slug === preferred);
+	if (preferredItem) {
+		picker.activeItems = [preferredItem];
+	}
+	picker.buttons = [vscode.QuickInputButtons.Back];
+
+	return new Promise((resolve) => {
+		let settled = false;
+		picker.onDidTriggerButton((button) => {
+			if (button === vscode.QuickInputButtons.Back) {
+				settled = true;
+				resolve('back');
+				picker.hide();
+			}
+		});
+		picker.onDidAccept(() => {
+			const item = picker.selectedItems[0] ?? picker.activeItems[0];
+			if (!item) {
+				return;
+			}
+			settled = true;
+			resolve(item.available);
+			picker.hide();
+		});
+		picker.onDidHide(() => {
+			if (!settled) {
+				resolve(undefined);
+			}
+			picker.dispose();
+		});
+		picker.show();
+	});
+}
+
+export async function searchProblems(services: Services): Promise<void> {
+	const site = services.store.activeSite;
 	const state = services.tree.listState;
-	if (state && state.total === 0) {
-		void vscode.window.showInformationMessage('No problems matched the search.');
+	if (!state || state.site !== site || state.items.length < state.total) {
+		await vscode.window.withProgress(
+			{
+				location: vscode.ProgressLocation.Notification,
+				title: `Loading all problems from ${siteLabel(site)}...`,
+			},
+			() => ensureAllProblems(services)
+		);
+	}
+	const items = services.tree.listState?.items ?? [];
+	if (items.length === 0) {
+		void vscode.window.showInformationMessage('No problems are available.');
+		return;
+	}
+
+	let query = '';
+	for (;;) {
+		const picked = await pickProblem(items, query);
+		if (!picked) {
+			return;
+		}
+		query = picked.query;
+		const problem = picked.item.problem;
+		const client = await createClient(services.store, problem.site);
+		const detail = await vscode.window.withProgress(
+			{
+				location: vscode.ProgressLocation.Notification,
+				title: `Loading ${problem.title}...`,
+			},
+			() => loadProblem(client, problem.titleSlug)
+		);
+
+		const language = await pickLanguage(detail);
+		if (language === undefined) {
+			return;
+		}
+		if (language === 'back') {
+			continue;
+		}
+
+		const solution = await ensureSolutionFile(detail, problem.site, language.language.slug);
+		await vscode.window.showTextDocument(solution.uri, {
+			viewColumn: vscode.ViewColumn.One,
+			preview: false,
+			preserveFocus: false,
+		});
+		services.description.show(detail, problem.site);
+		logInfo(`Opened ${detail.titleSlug} (${language.language.slug}) from search.`);
+		return;
 	}
 }
 
 export async function refreshProblems(services: Services): Promise<void> {
-	const state = services.tree.listState;
 	const site = services.store.activeSite;
-	if (state && state.site === site) {
-		await loadProblemList(services, {
-			site,
-			query: state.query,
-		});
-	} else {
-		await loadProblemList(services, { site, query: '' });
-	}
+	await vscode.window.withProgress(
+		{
+			location: vscode.ProgressLocation.Notification,
+			title: `Refreshing problems from ${siteLabel(site)}...`,
+		},
+		() => loadProblemList(services, { site, silent: true })
+	);
 }
