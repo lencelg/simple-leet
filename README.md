@@ -11,6 +11,7 @@ A small LeetCode extension for VS Code:
 
 - **Sign in with your browser session** for LeetCode China and LeetCode Global. Sessions are stored per site in VS Code `SecretStorage`, never in settings, source files or logs.
 - **Problem explorer** grouped into **All**, **Easy**, **Medium** and **Hard** categories, with a live-filtering problem picker and Solved markers.
+- **Language selection**: opening a problem from the sidebar or search asks which language to use before creating the file.
 - **Solutions stored directly in `~/.leetcode`**, named after the problem title; no per-problem folders or metadata files.
 - **Problem description** in a side panel, with tags, acceptance rate, hints and a link to the website.
 - **Multi-language templates**: C++, C, C#, Go, Java, JavaScript, Kotlin, PHP, Python 3, Ruby, Rust, Scala, Swift, TypeScript and MySQL. The template is generated from the problem's official snippet.

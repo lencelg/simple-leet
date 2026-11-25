@@ -3,6 +3,7 @@
 ## 2.0.1
 
 - Add MIT license.
+- Ask for a language when opening a problem from the sidebar; search and Change Language use the same picker.
 
 ## 2.0.0
 

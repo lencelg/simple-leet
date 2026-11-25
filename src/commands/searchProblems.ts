@@ -3,12 +3,12 @@ import { createClient } from '../leetcode/auth';
 import { LeetCodeClient, ProblemListPage } from '../leetcode/client';
 import { loadProblem } from '../leetcode/problems';
 import { Services } from '../services';
-import { ProblemDetail, Site, SiteProblem } from '../types/problem';
+import { Site, SiteProblem } from '../types/problem';
 import { errorMessage } from '../util/errors';
 import { logError, logInfo } from '../util/log';
 import { siteLabel } from '../util/site';
 import { ensureSolutionFile } from '../workspace/problemStore';
-import { AvailableLanguage, availableLanguages } from '../workspace/templateGenerator';
+import { pickLanguage } from './languagePicker';
 
 const PAGE_SIZE = 100;
 const PAGE_CONCURRENCY = 4;
@@ -24,10 +24,6 @@ interface LoadOptions {
 
 interface ProblemPickItem extends vscode.QuickPickItem {
 	problem: SiteProblem;
-}
-
-interface LanguagePickItem extends vscode.QuickPickItem {
-	available: AvailableLanguage;
 }
 
 function delay(ms: number): Promise<void> {
@@ -208,55 +204,6 @@ function pickProblem(
 	});
 }
 
-function pickLanguage(detail: ProblemDetail): Promise<AvailableLanguage | 'back' | undefined> {
-	const available = availableLanguages(detail);
-	if (available.length === 0) {
-		throw new Error('This problem does not provide code snippets for a supported language.');
-	}
-	const picker = vscode.window.createQuickPick<LanguagePickItem>();
-	picker.title = `Select Language for ${detail.questionFrontendId}. ${detail.title}`;
-	picker.placeholder = 'Choose a language for the solution file';
-	picker.items = available.map((entry) => ({
-		label: entry.language.slug,
-		available: entry,
-	}));
-	const preferred = vscode.workspace
-		.getConfiguration('simple-leet')
-		.get<string>('defaultLanguage', 'cpp');
-	const preferredItem = picker.items.find((item) => item.available.language.slug === preferred);
-	if (preferredItem) {
-		picker.activeItems = [preferredItem];
-	}
-	picker.buttons = [vscode.QuickInputButtons.Back];
-
-	return new Promise((resolve) => {
-		let settled = false;
-		picker.onDidTriggerButton((button) => {
-			if (button === vscode.QuickInputButtons.Back) {
-				settled = true;
-				resolve('back');
-				picker.hide();
-			}
-		});
-		picker.onDidAccept(() => {
-			const item = picker.selectedItems[0] ?? picker.activeItems[0];
-			if (!item) {
-				return;
-			}
-			settled = true;
-			resolve(item.available);
-			picker.hide();
-		});
-		picker.onDidHide(() => {
-			if (!settled) {
-				resolve(undefined);
-			}
-			picker.dispose();
-		});
-		picker.show();
-	});
-}
-
 export async function searchProblems(services: Services): Promise<void> {
 	const site = services.store.activeSite;
 	const state = services.tree.listState;
@@ -292,7 +239,7 @@ export async function searchProblems(services: Services): Promise<void> {
 			() => loadProblem(client, problem.titleSlug)
 		);
 
-		const language = await pickLanguage(detail);
+		const language = await pickLanguage(detail, { allowBack: true });
 		if (language === undefined) {
 			return;
 		}
