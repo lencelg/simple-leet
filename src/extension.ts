@@ -12,6 +12,7 @@ import { refreshAuthUi, Services } from './services';
 import { initLog } from './util/log';
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
+	console.log('Simple Leet activated.');
 	const output = initLog();
 	const store = new SessionStore(context.secrets, context.globalState);
 	const tree = new ProblemTreeProvider(context);
