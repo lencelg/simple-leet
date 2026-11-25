@@ -1,5 +1,9 @@
 # Change Log
 
+## 2.0.1
+
+- Add MIT license.
+
 ## 2.0.0
 
 - Sign in to LeetCode China and LeetCode Global with browser session cookies stored in `SecretStorage`.
