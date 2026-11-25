@@ -1,7 +1,7 @@
 {
   "name": "simple-leet",
   "displayName": "Simple Leet",
-  "description": "Sign in to LeetCode, search problems, generate solution files in many languages, run local C++ tests and submit solutions.",
+  "description": "Sign in to LeetCode, search problems, generate solution files in many languages, test solutions online and submit them.",
   "version": "0.1.0",
   "engines": {
     "vscode": "^1.85.0"
@@ -150,7 +150,7 @@
       "editor/title": [
         {
           "command": "simple-leet.runTests",
-          "when": "simple-leet.isProblemFile && resourceExtname == '.cpp'",
+          "when": "simple-leet.isProblemFile",
           "group": "navigation@1"
         },
         {
@@ -162,7 +162,7 @@
       "editor/context": [
         {
           "command": "simple-leet.runTests",
-          "when": "simple-leet.isProblemFile && resourceExtname == '.cpp'",
+          "when": "simple-leet.isProblemFile",
           "group": "navigation@1"
         },
         {
@@ -220,17 +220,6 @@
           "type": "string",
           "default": "~/.leetcode",
           "description": "Folder where solution files are stored. ~ expands to your home directory."
-        },
-        "simple-leet.compilerPath": {
-          "type": "string",
-          "default": "",
-          "description": "C++ compiler executable used by local tests. Leave empty to auto-detect g++ or clang++."
-        },
-        "simple-leet.testTimeoutMs": {
-          "type": "number",
-          "default": 10000,
-          "minimum": 500,
-          "description": "Time limit for each local test case in milliseconds."
         },
         "simple-leet.submissionTimeoutMs": {
           "type": "number",

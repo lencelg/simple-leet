@@ -16,17 +16,12 @@ export class ProblemCodeLensProvider implements vscode.CodeLensProvider {
 			return [];
 		}
 		const range = new vscode.Range(0, 0, 0, 0);
-		const lenses: vscode.CodeLens[] = [];
-		if (language.slug === 'cpp') {
-			lenses.push(
-				new vscode.CodeLens(range, {
-					title: 'Run Local Tests',
-					command: 'simple-leet.runTests',
-					arguments: [document.uri],
-				})
-			);
-		}
-		lenses.push(
+		const lenses: vscode.CodeLens[] = [
+			new vscode.CodeLens(range, {
+				title: 'Run Tests',
+				command: 'simple-leet.runTests',
+				arguments: [document.uri],
+			}),
 			new vscode.CodeLens(range, {
 				title: 'Submit Solution',
 				command: 'simple-leet.submitSolution',
@@ -36,8 +31,8 @@ export class ProblemCodeLensProvider implements vscode.CodeLensProvider {
 				title: 'Open in Browser',
 				command: 'simple-leet.openInBrowser',
 				arguments: [document.uri],
-			})
-		);
+			}),
+		];
 		return lenses;
 	}
 }

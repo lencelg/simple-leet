@@ -42,6 +42,7 @@ export interface ProblemDetail extends ProblemSummary {
 	questionId: string;
 	content: string;
 	exampleTestcases: string;
+	sampleTestCase: string;
 	metaData: unknown;
 	codeSnippets: CodeSnippet[];
 	hints: string[];

@@ -1,23 +1,20 @@
-export interface LocalTestCase {
-	index: number;
-	input: string;
-	expected?: string;
-	actual?: string;
-	stderr?: string;
-	passed?: boolean;
-	exact?: boolean;
-	note?: string;
-	timedOut?: boolean;
-	durationMs?: number;
-}
+import { Site } from './problem';
 
-export interface TestRunReport {
+export interface TestReport {
 	problemTitle: string;
-	compiler: string;
+	site: Site;
+	statusCode: number;
+	statusName: string;
+	accepted: boolean;
+	runtime?: string;
+	memory?: string;
+	passedTests?: number;
+	totalTests?: number;
+	input?: string;
+	expectedOutput?: string;
+	actualOutput?: string;
+	stdOutput?: string;
 	compileError?: string;
-	cases: LocalTestCase[];
-	passed: number;
-	total: number;
-	skipped: number;
-	expectedAvailable: boolean;
+	runtimeError?: string;
+	problemUrl: string;
 }

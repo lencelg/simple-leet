@@ -1,6 +1,7 @@
 import { Site } from '../types/problem';
 import { SubmissionCheckResponse, SubmissionReport, isAccepted, submissionStatusName } from '../types/submission';
-import { siteBaseUrl } from '../util/site';
+import { TestReport } from '../types/test';
+import { problemUrl, siteBaseUrl } from '../util/site';
 import { LeetCodeClient } from './client';
 
 export interface WaitOptions {
@@ -65,6 +66,34 @@ function joinAnswer(value: string[] | string | undefined): string | undefined {
 		return value.filter((item) => item !== '').join('\n') || undefined;
 	}
 	return value || undefined;
+}
+
+export function buildTestReport(
+	problemTitle: string,
+	site: Site,
+	titleSlug: string,
+	response: SubmissionCheckResponse
+): TestReport {
+	const statusCode = response.status_code ?? 0;
+	return {
+		problemTitle,
+		site,
+		statusCode,
+		statusName: response.status_msg || submissionStatusName(statusCode),
+		accepted: isAccepted(statusCode),
+		runtime: response.status_runtime || response.display_runtime || undefined,
+		memory: response.status_memory || undefined,
+		passedTests: response.total_correct,
+		totalTests: response.total_testcases,
+		input: response.input || response.last_testcase || undefined,
+		expectedOutput:
+			joinAnswer(response.expected_code_answer) || joinAnswer(response.expected_output) || undefined,
+		actualOutput: joinAnswer(response.code_answer) || joinAnswer(response.code_output) || undefined,
+		stdOutput: response.std_output || joinAnswer(response.std_output_list),
+		compileError: response.full_compile_error || response.compile_error || undefined,
+		runtimeError: response.runtime_error || undefined,
+		problemUrl: problemUrl(site, titleSlug),
+	};
 }
 
 export function buildSubmissionReport(

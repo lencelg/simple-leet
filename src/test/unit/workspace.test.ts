@@ -20,6 +20,7 @@ const detail: ProblemDetail = {
 	topicTags: [],
 	content: '',
 	exampleTestcases: '[2,7,11,15]\n9',
+	sampleTestCase: '[2,7,11,15]\n9',
 	metaData: {
 		name: 'twoSum',
 		params: [

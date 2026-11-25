@@ -22,6 +22,11 @@ export interface ProblemListPage {
 	problems: ProblemSummary[];
 }
 
+export interface InterpretResult {
+	interpretId: string;
+	interpretExpectedId?: string;
+}
+
 export interface UserStatus {
 	isSignedIn: boolean;
 	username?: string;
@@ -275,11 +280,53 @@ export class LeetCodeClient {
 			topicTags: question.topicTags ?? [],
 			content: (translated ? question.translatedContent || question.content : question.content) ?? '',
 			exampleTestcases: question.exampleTestcases ?? question.sampleTestCase ?? '',
+			sampleTestCase: question.sampleTestCase ?? '',
 			metaData: parseJson(question.metaData),
 			codeSnippets: (question.codeSnippets ?? [])
 				.filter((snippet) => Boolean(snippet.langSlug && snippet.code))
 				.map((snippet) => ({ lang: snippet.lang ?? snippet.langSlug ?? '', langSlug: snippet.langSlug ?? '', code: snippet.code ?? '' })),
 			hints: question.hints ?? [],
+		};
+	}
+
+	async runSolution(
+		questionId: number,
+		lang: string,
+		code: string,
+		titleSlug: string,
+		dataInput: string
+	): Promise<InterpretResult> {
+		if (!this.credentials) {
+			throw new LeetCodeError(`Sign in to ${this.site} before running tests.`);
+		}
+		const response = await this.requestJson<{
+			interpret_id?: string | number | null;
+			interpret_expected_id?: string | number | null;
+			error?: string;
+		}>(`${this.baseUrl}/problems/${encodeURIComponent(titleSlug)}/interpret_solution/`, {
+			method: 'POST',
+			headers: { ...this.headers(problemUrl(this.site, titleSlug)), 'X-Requested-With': 'XMLHttpRequest' },
+			body: JSON.stringify({
+				data_input: dataInput,
+				lang,
+				question_id: questionId,
+				test_mode: false,
+				typed_code: code,
+			}),
+		});
+		if (response.error) {
+			throw new LeetCodeError(response.error);
+		}
+		const interpretId = response.interpret_id;
+		if (interpretId === undefined || interpretId === null || interpretId === '') {
+			throw new LeetCodeError('LeetCode did not return an interpret id.');
+		}
+		return {
+			interpretId: String(interpretId),
+			interpretExpectedId:
+				response.interpret_expected_id === undefined || response.interpret_expected_id === null
+					? undefined
+					: String(response.interpret_expected_id),
 		};
 	}
 
