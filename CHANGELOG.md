@@ -1,5 +1,9 @@
 # Change Log
 
+## 2.0.2
+
+- Improve extension debugging with an isolated launch configuration and an activation log.
+
 ## 2.0.1
 
 - Add MIT license.

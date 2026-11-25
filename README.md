@@ -1,10 +1,11 @@
 # Simple Leet
 
 A small LeetCode extension for VS Code:
+
 - sign in to **leetcode.cn** or **leetcode.com**
 - search problems
 - generate multi-language solution files
-- test solutions on LeetCode 
+- test solutions on LeetCode
 - submit with live judge results.
 
 ## Features
@@ -96,7 +97,6 @@ src/
 └── test/              # unit and integration tests
 ```
 
-
 ## Development
 
 ```bash
@@ -105,8 +105,6 @@ npm run compile
 npm run lint
 npm run test:unit
 ```
-
-Press `F5` to launch an Extension Development Host.
 
 ## License
 
