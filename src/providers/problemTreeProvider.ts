@@ -30,14 +30,14 @@ function difficultyLabel(difficulty: string): string {
 	return DIFFICULTY_LABELS[difficulty.toUpperCase()] ?? difficulty;
 }
 
-function difficultyIcon(difficulty: string): vscode.ThemeIcon {
+function difficultyIcon(extensionUri: vscode.Uri, difficulty: string): vscode.Uri | vscode.ThemeIcon {
 	switch (difficulty.toLowerCase()) {
 		case 'easy':
-			return new vscode.ThemeIcon('circle-filled', new vscode.ThemeColor('charts.green'));
+			return vscode.Uri.joinPath(extensionUri, 'resources', 'difficulty-easy.svg');
 		case 'medium':
-			return new vscode.ThemeIcon('circle-filled', new vscode.ThemeColor('charts.orange'));
+			return vscode.Uri.joinPath(extensionUri, 'resources', 'difficulty-medium.svg');
 		case 'hard':
-			return new vscode.ThemeIcon('circle-filled', new vscode.ThemeColor('charts.red'));
+			return vscode.Uri.joinPath(extensionUri, 'resources', 'difficulty-hard.svg');
 		default:
 			return new vscode.ThemeIcon('circle-outline');
 	}
@@ -195,7 +195,7 @@ export class ProblemTreeProvider implements vscode.TreeDataProvider<ProblemTreeN
 					`${problem.questionFrontendId}. ${problem.title}`,
 					vscode.TreeItemCollapsibleState.None
 				);
-				const parts = [difficultyLabel(problem.difficulty)];
+				const parts: string[] = [];
 				if (problem.paidOnly) {
 					parts.push('Premium');
 				}
@@ -203,8 +203,11 @@ export class ProblemTreeProvider implements vscode.TreeDataProvider<ProblemTreeN
 					parts.push('Solved');
 				}
 				item.description = parts.join(' · ');
-				item.iconPath = difficultyIcon(problem.difficulty);
+				item.iconPath = difficultyIcon(this.context.extensionUri, problem.difficulty);
 				item.contextValue = 'problem';
+				item.accessibilityInformation = {
+					label: `${difficultyLabel(problem.difficulty)} problem ${problem.questionFrontendId}. ${problem.title}`,
+				};
 				item.command = {
 					command: 'simple-leet.showProblem',
 					title: 'Show Problem',
