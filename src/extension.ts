@@ -1,26 +1,50 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { registerAllCommands } from './commands';
+import { SessionStore } from './leetcode/auth';
+import { DescriptionPanel } from './panels/descriptionPanel';
+import { ResultsPanel } from './panels/resultsPanel';
+import { AccountStatusBar } from './providers/accountStatusBar';
+import { ActiveProblemTracker } from './providers/activeProblemTracker';
+import { ProblemCodeLensProvider } from './providers/problemCodeLensProvider';
+import { ProblemTreeProvider } from './providers/problemTreeProvider';
+import { refreshAuthUi, Services } from './services';
+import { initLog } from './util/log';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
-export function activate(context: vscode.ExtensionContext) {
-
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "simple-leet" is now active!');
-
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('simple-leet.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from simple_leet!');
+export async function activate(context: vscode.ExtensionContext): Promise<void> {
+	const output = initLog();
+	const store = new SessionStore(context.secrets, context.globalState);
+	const tree = new ProblemTreeProvider(context);
+	const treeView = vscode.window.createTreeView('simple-leet.problems', {
+		treeDataProvider: tree,
+		showCollapseAll: true,
 	});
+	const statusBar = new AccountStatusBar();
+	const description = new DescriptionPanel(context.extensionUri);
+	const results = new ResultsPanel(context.extensionUri);
+	const services: Services = {
+		context,
+		store,
+		tree,
+		statusBar,
+		description,
+		results,
+	};
 
-	context.subscriptions.push(disposable);
+	context.subscriptions.push(
+		output,
+		tree,
+		treeView,
+		statusBar,
+		description,
+		results,
+		new ActiveProblemTracker(),
+		vscode.languages.registerCodeLensProvider({ scheme: 'file' }, new ProblemCodeLensProvider()),
+		...registerAllCommands(services)
+	);
+
+	await refreshAuthUi(services);
 }
 
-// This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate(): void {
+	// Resources are disposed through the extension context subscriptions.
+}

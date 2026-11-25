@@ -1,23 +1,261 @@
 {
   "name": "simple-leet",
-  "displayName": "simple_leet",
-  "description": "a simple plugin to sign infetch problem ",
-  "version": "0.0.1",
+  "displayName": "Simple Leet",
+  "description": "Sign in to LeetCode, search problems, generate solution files in many languages, run local C++ tests and submit solutions.",
+  "version": "0.1.0",
   "engines": {
-    "vscode": "^1.146.0"
+    "vscode": "^1.85.0"
   },
   "categories": [
+    "Education",
     "Other"
   ],
-  "activationEvents": [],
+  "keywords": [
+    "leetcode",
+    "algorithm",
+    "competitive programming",
+    "cpp"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:simple-leet.problems"
+  ],
   "main": "./out/extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "simple-leet",
+          "title": "LeetCode",
+          "icon": "resources/leetcode.svg"
+        }
+      ]
+    },
+    "views": {
+      "simple-leet": [
+        {
+          "id": "simple-leet.problems",
+          "name": "Problems",
+          "icon": "resources/leetcode.svg"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "simple-leet.problems",
+        "contents": "Search LeetCode problems and open them in your workspace.\n[Search Problems](command:simple-leet.searchProblems)\n[Sign In](command:simple-leet.signIn)\nYou can browse without signing in. Sign-in is required to submit.",
+        "when": "!simple-leet.signedIn"
+      },
+      {
+        "view": "simple-leet.problems",
+        "contents": "Search LeetCode problems and open them in your workspace.\n[Search Problems](command:simple-leet.searchProblems)",
+        "when": "simple-leet.signedIn"
+      }
+    ],
     "commands": [
       {
-        "command": "simple-leet.helloWorld",
-        "title": "Hello World"
+        "command": "simple-leet.signIn",
+        "title": "Sign In",
+        "category": "LeetCode",
+        "icon": "$(account)"
+      },
+      {
+        "command": "simple-leet.signOut",
+        "title": "Sign Out",
+        "category": "LeetCode",
+        "icon": "$(sign-out)"
+      },
+      {
+        "command": "simple-leet.accountMenu",
+        "title": "Account Menu",
+        "category": "LeetCode",
+        "icon": "$(account)"
+      },
+      {
+        "command": "simple-leet.switchSite",
+        "title": "Switch Site",
+        "category": "LeetCode",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "simple-leet.searchProblems",
+        "title": "Search Problems",
+        "category": "LeetCode",
+        "icon": "$(search)"
+      },
+      {
+        "command": "simple-leet.refreshSearch",
+        "title": "Refresh Search Results",
+        "category": "LeetCode",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "simple-leet.showProblem",
+        "title": "Show Problem",
+        "category": "LeetCode"
+      },
+      {
+        "command": "simple-leet.loadMore",
+        "title": "Load More Problems",
+        "category": "LeetCode"
+      },
+      {
+        "command": "simple-leet.changeLanguage",
+        "title": "Change Language",
+        "category": "LeetCode",
+        "icon": "$(code)"
+      },
+      {
+        "command": "simple-leet.runTests",
+        "title": "Run Tests",
+        "category": "LeetCode",
+        "icon": "$(play)"
+      },
+      {
+        "command": "simple-leet.submitSolution",
+        "title": "Submit Solution",
+        "category": "LeetCode",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "simple-leet.openInBrowser",
+        "title": "Open Problem in Browser",
+        "category": "LeetCode",
+        "icon": "$(link-external)"
       }
-    ]
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "simple-leet.searchProblems",
+          "when": "view == simple-leet.problems",
+          "group": "navigation@1"
+        },
+        {
+          "command": "simple-leet.refreshSearch",
+          "when": "view == simple-leet.problems",
+          "group": "navigation@2"
+        },
+        {
+          "command": "simple-leet.switchSite",
+          "when": "view == simple-leet.problems",
+          "group": "navigation@3"
+        },
+        {
+          "command": "simple-leet.signIn",
+          "when": "view == simple-leet.problems && !simple-leet.signedIn",
+          "group": "navigation@4"
+        },
+        {
+          "command": "simple-leet.signOut",
+          "when": "view == simple-leet.problems && simple-leet.signedIn",
+          "group": "navigation@4"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "simple-leet.runTests",
+          "when": "simple-leet.isProblemFile && resourceExtname == '.cpp'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "simple-leet.submitSolution",
+          "when": "simple-leet.isProblemFile",
+          "group": "navigation@2"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "simple-leet.runTests",
+          "when": "simple-leet.isProblemFile && resourceExtname == '.cpp'",
+          "group": "navigation@1"
+        },
+        {
+          "command": "simple-leet.submitSolution",
+          "when": "simple-leet.isProblemFile",
+          "group": "navigation@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "simple-leet.showProblem",
+          "when": "false"
+        },
+        {
+          "command": "simple-leet.loadMore",
+          "when": "false"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "LeetCode",
+      "properties": {
+        "simple-leet.defaultSite": {
+          "type": "string",
+          "enum": [
+            "leetcode.cn",
+            "leetcode.com"
+          ],
+          "enumDescriptions": [
+            "LeetCode China (leetcode.cn)",
+            "LeetCode Global (leetcode.com)"
+          ],
+          "default": "leetcode.cn",
+          "description": "Site used for browsing when no account is active."
+        },
+        "simple-leet.defaultLanguage": {
+          "type": "string",
+          "enum": [
+            "cpp",
+            "c",
+            "csharp",
+            "golang",
+            "java",
+            "javascript",
+            "kotlin",
+            "php",
+            "python3",
+            "ruby",
+            "rust",
+            "scala",
+            "swift",
+            "typescript",
+            "mysql"
+          ],
+          "default": "cpp",
+          "description": "Language used when generating a solution file for a problem."
+        },
+        "simple-leet.workspaceFolder": {
+          "type": "string",
+          "default": "leetcode",
+          "description": "Folder where problem files are stored. Relative paths are resolved against the first workspace folder."
+        },
+        "simple-leet.compilerPath": {
+          "type": "string",
+          "default": "",
+          "description": "C++ compiler executable used by local tests. Leave empty to auto-detect g++ or clang++."
+        },
+        "simple-leet.testTimeoutMs": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 500,
+          "description": "Time limit for each local test case in milliseconds."
+        },
+        "simple-leet.submissionTimeoutMs": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 5000,
+          "description": "Maximum time to wait for a LeetCode judge result in milliseconds."
+        },
+        "simple-leet.paginationSize": {
+          "type": "number",
+          "default": 50,
+          "minimum": 10,
+          "maximum": 100,
+          "description": "Number of problems fetched per search page."
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
@@ -25,17 +263,18 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "test:unit": "npm run compile && node --test out/test/unit"
   },
   "devDependencies": {
-    "@types/vscode": "^1.146.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "24.x",
-    "typescript-eslint": "^8.61.1",
+    "@types/vscode": "1.85.0",
+    "@vscode/test-cli": "^0.0.15",
+    "@vscode/test-electron": "^3.0.0",
     "eslint": "^10.5.0",
     "typescript": "^6.0.3",
-    "@vscode/test-cli": "^0.0.15",
-    "@vscode/test-electron": "^3.0.0"
+    "typescript-eslint": "^8.61.1"
   },
   "overrides": {
     "diff": "^8.0.4",
