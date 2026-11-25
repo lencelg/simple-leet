@@ -32,13 +32,17 @@ const detail: ProblemDetail = {
 	hints: [],
 };
 
-test('builds a C++ solution template with a comment header', () => {
+test('builds a C++ solution template with submit markers and a comment header', () => {
 	const template = buildSolutionTemplate(detail, 'leetcode.cn', 'cpp');
 	assert.ok(template);
 	assert.equal(template.fileName, 'solution.cpp');
 	assert.match(template.content, /^\/\/ 1\. Two Sum \(Easy\)/);
 	assert.match(template.content, /https:\/\/leetcode\.cn\/problems\/two-sum\//);
-	assert.match(template.content, /class Solution \{\};/);
+	assert.match(template.content, /Only the code between the submit markers is sent to LeetCode\./);
+	const start = template.content.indexOf('// @simple-leet:submit-start');
+	const end = template.content.indexOf('// @simple-leet:submit-end');
+	const snippet = template.content.indexOf('class Solution {};');
+	assert.ok(start >= 0 && start < snippet && snippet < end);
 });
 
 test('uses language-specific comment prefixes and extensions', () => {
@@ -46,6 +50,10 @@ test('uses language-specific comment prefixes and extensions', () => {
 	assert.ok(template);
 	assert.equal(template.fileName, 'solution.py');
 	assert.match(template.content, /^# 1\. Two Sum \(Easy\)/);
+	const start = template.content.indexOf('# @simple-leet:submit-start');
+	const end = template.content.indexOf('# @simple-leet:submit-end');
+	const snippet = template.content.indexOf('class Solution:');
+	assert.ok(start >= 0 && start < snippet && snippet < end);
 });
 
 test('returns undefined for languages without a snippet', () => {

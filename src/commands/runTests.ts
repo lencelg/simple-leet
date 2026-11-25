@@ -20,6 +20,7 @@ import { LocalTestCase, TestRunReport } from '../types/test';
 import { errorMessage } from '../util/errors';
 import { logInfo } from '../util/log';
 import { readSolutionText, getProblemMetaForFile, writeMetaFile } from '../workspace/problemStore';
+import { extractSubmissionCode } from '../workspace/submissionCode';
 
 export async function runTests(services: Services, uriArg?: unknown): Promise<void> {
 	const uri = uriArg instanceof vscode.Uri ? uriArg : vscode.window.activeTextEditor?.document.uri;
@@ -82,11 +83,20 @@ export async function runTests(services: Services, uriArg?: unknown): Promise<vo
 		signature.params.map((param) => param.name)
 	);
 	const expectedOutputs = Array.isArray(meta.expectedOutputs) ? meta.expectedOutputs : [];
-	const solutionCode = await readSolutionText(uri);
+	const source = await readSolutionText(uri);
+	const submission = extractSubmissionCode(source);
+	if (submission.warning) {
+		logInfo(`Local tests: ${submission.warning}`);
+	}
+	if (!submission.code.trim()) {
+		throw new Error(
+			'The marked submission section is empty. Move your solution between the submit markers.'
+		);
+	}
 	const harness = generateCppHarness({
 		signature,
 		cases: testcases.map((testcase) => testcase.args),
-		solutionCode,
+		solutionCode: submission.code,
 	});
 
 	const config = vscode.workspace.getConfiguration('simple-leet');

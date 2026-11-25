@@ -9,6 +9,7 @@ import { errorMessage } from '../util/errors';
 import { logInfo } from '../util/log';
 import { siteLabel } from '../util/site';
 import { getProblemMetaForFile, readSolutionText, writeMetaFile } from '../workspace/problemStore';
+import { extractSubmissionCode } from '../workspace/submissionCode';
 
 export async function submitSolution(services: Services, uriArg?: unknown): Promise<void> {
 	const uri = uriArg instanceof vscode.Uri ? uriArg : vscode.window.activeTextEditor?.document.uri;
@@ -50,12 +51,22 @@ export async function submitSolution(services: Services, uriArg?: unknown): Prom
 			'The csrftoken cookie is missing from the saved session. Sign out, then sign in again with the full cookie header.'
 		);
 	}
-	const code = await readSolutionText(uri);
-	if (!code.trim()) {
-		throw new Error('The solution file is empty.');
+	const source = await readSolutionText(uri);
+	const submission = extractSubmissionCode(source);
+	if (!submission.code.trim()) {
+		throw new Error(
+			'The marked submission section is empty. Move your solution between the submit markers.'
+		);
 	}
+	if (submission.warning) {
+		logInfo(submission.warning);
+		void vscode.window.showWarningMessage(submission.warning);
+	}
+	const code = submission.code;
 
-	logInfo(`Submitting ${meta.titleSlug} (${language.slug}) to ${meta.site}...`);
+	logInfo(
+		`Submitting ${meta.titleSlug} (${language.slug})${submission.marked ? ' using the marked section' : ''} to ${meta.site}...`
+	);
 	const submissionId = await vscode.window.withProgress(
 		{ location: vscode.ProgressLocation.Notification, title: `Submitting to ${siteLabel(meta.site)}...` },
 		() => client.submitSolution(questionId, language.slug, code, meta.titleSlug)

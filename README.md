@@ -69,9 +69,24 @@ All commands are in English under the **LeetCode** category:
 | `simple-leet.submissionTimeoutMs` | `60000` | Judge polling timeout |
 | `simple-leet.paginationSize` | `50` | Problems fetched per search page |
 
+## Submit markers
+
+Generated solution files wrap the official LeetCode snippet in language-appropriate comments:
+
+```cpp
+// @simple-leet:submit-start
+class Solution {
+public:
+    // ...
+};
+// @simple-leet:submit-end
+```
+
+`Submit Solution` and local tests use only the code between these markers, so debug helpers, notes or extra test code outside the markers are not sent to LeetCode. Keep any imports or helper definitions required by the judge inside the markers. Files created before this feature (without markers) are used as a whole. If only one marker is found, the whole file is used and a warning is shown.
+
 ## How local testing works
 
-For C++ problems the runner reads the problem metadata (`meta.json`) saved when you opened the problem, generates a temporary `main.cpp` that constructs the parameters from the example inputs, calls `Solution`, and prints the result in LeetCode's output format. It runs each example in its own process so a crash or timeout in one case does not hide the others. Results are compared numerically with a small tolerance; when the statement says the answer may be returned **in any order**, element order is ignored.
+For C++ problems the runner reads the problem metadata (`meta.json`) saved when you opened the problem, generates a temporary `main.cpp` that constructs the parameters from the example inputs, calls `Solution`, and prints the result in LeetCode's output format. It compiles the code inside the submit markers (or the whole file if no markers are present) and runs each example in its own process so a crash or timeout in one case does not hide the others. Results are compared numerically with a small tolerance; when the statement says the answer may be returned **in any order**, element order is ignored.
 
 Supported signature types: integers, longs, doubles, booleans, characters, strings, arrays/matrices of those, `ListNode` and `TreeNode`, plus `void` methods (the runner prints the first argument after the call).
 
